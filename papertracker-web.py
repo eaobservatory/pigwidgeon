@@ -23,7 +23,9 @@ from sqlalchemy import create_engine, Column, ForeignKey, Unicode, UnicodeText, 
     Integer, String, Table, Unicode, Boolean, DateTime, func
 from sqlalchemy.ext.declarative import declarative_base
 
-from db import Paper, Search
+import werkzeug.exceptions
+
+from db import Paper, Search, PaperType, InfoSection, InfoSublist
 
 # Parse arguments
 arguments = docopt(__doc__, help=True)
@@ -40,17 +42,95 @@ def papertracking_webapp():
     Create web app for tracking paper relevancy.
 
     """
+    engine = create_engine('sqlite:///mydatabase.db')
     app = Flask('Papermonitoring')
     @app.route('/search/<searchid>/paper/<paperid>')
     def paper_info_page(paperid, searchid):
         return render_template('paperview_template.html', **get_paper_info(paperid, searchid))
 
+    @app.route('/preview_search', methods=['POST'])
+    def preview_search():
+        search = create_search_from_request(request)
+        print('In preview search!')
+        return render_template('displaysearch.html',search=search, preview=True)
+
+    @app.route('/create_search', methods=['POST'])
+    def create_search():
+        search = create_search_from_request(request)
+        ses = create_db(engine)
+        ses.add(search)
+        print([i.name_ for i in search.infosections])
+        ses.commit()
+        
+        return render_template('displaysearch.html', search=search, preview=False, create=True)
+    @app.route('/search/<searchid>')
+    def search_info_page(searchid):
+        ses = create_db(engine)
+        search = ses.query(Search).filter(Search.id==int(searchid)).one()
+        return render_template('displaysearch.html', search=search)
+    
+    def create_search_from_request(request):
+        """
+        Create a db.Search object from data in a request FORM header.
+
+        Assumes the POST to the FORM set everything up sensibly.
+        """
+        searchname = request.form.get('searchname', None)
+        if not searchname:
+            raise werkzeug.exceptions.InternalServerError('No searchname set. Please use the browser\'s back button to return to your search query setup.')
+        adsquery = request.form.get('adsquery', None)
+        if not adsquery:
+            raise werkzeug.exceptions.InternalServerError('No ads query set. Please use the browser\'s back button to return to your search query setup.')
+        ptnames = request.form.getlist('ptname')
+        ptradios = [request.form.get('ptradio' + str(i+1), False)=='on' for i in range(len(ptnames))]
+        infonames = request.form.getlist('infoname')
+        infotexts = request.form.getlist('infotext')
+        infotypes = [int(i) for i in request.form.getlist('infotype')]
+        infosublistids = request.form.getlist('infosublistid')
+        infosublistentries = request.form.getlist('infosublistentry')
+        # Create a Search object
+        ptname_codes = [str(i) for i in range(len(ptnames))]
+        papertypes = [PaperType(name_=i, name_code=j, radio=k)
+                      for i, j,k in zip(ptnames, ptname_codes, ptradios)]
+        is_codes = [str(i) for i in range(len(infonames))]
+        print(len(infonames), len(is_codes), len(infotypes), len(infotexts))
+        infosections = [InfoSection(name_=i, name_code=j, type_=k,
+                                    position_=infonames.index(i), instructiontext=l)
+                        for i,j,k,l in zip(infonames, is_codes, infotypes, infotexts)]
+        print(', '.join([str(i.name_)+str(i.position_) for i in infosections]))
+        if infosublistids and infosublistentries:
+            for i in set(infosublistids):
+               sublistentries = [
+                   infosublistentries[j] for j in range(len(infosublistids))
+                   if infosublistids[j] == i]
+               sublists = [InfoSublist(named=j,
+                                       position_=sublistentries.index(j))
+                           for j in sublistentries]
+               infosections[int(i)-1].sublists=sublists
+        # Validate one thing:
+        for  i in infosections:
+            if i.type_ not in [0,1]:
+                if i.sublists and len(i.sublists)!=0:
+                    print(i.name_, i.type_, i.sublists)
+                    raise werkzeug.exceptions.InternalServerError('This search has sublists for a a text entry type. If you are creating a search, please use the back button to fix this.')
+        search = Search(named=searchname, ads_query=adsquery, last_performed=None,
+               startdate=None,
+               papertypes=papertypes, infosections=infosections)
+        return search
+
     @app.route('/search/setup')
     def search_setup_page():
-        print(request.args)
-        print(request.args.getlist('infosublistid'))
-        print(request.args.getlist('infosublistentry'))
+        # Create Search
         return render_template('searchcreation.html')
+
+    def create_db(engine):
+        # Set up DB stuff.
+
+        Base = declarative_base()
+        Session = sessionmaker(bind=engine)
+        ses = Session()
+        return ses
+
     def get_paper_info(paperid, searchid):
         """
         Get summary info of paper.
@@ -61,12 +141,7 @@ def papertracking_webapp():
         paperid = int(paperid)
         searchid = int(searchid)
 
-        # Set up DB stuff.
-        engine = create_engine('sqlite:///mydatabase.db')
-        Base = declarative_base()
-        Session = sessionmaker(bind=engine)
-        ses = Session()
-
+        create_db(engine)
         # Get search and paper
         search = ses.query(Search).filter(Search.id==searchid).one()
         paper = ses.query(Paper).filter(Paper.id==paperid).one()
