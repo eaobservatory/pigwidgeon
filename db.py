@@ -133,7 +133,7 @@ class InfoSublist(Base):
                                                  onupdate='RESTRICT',
                                                  ondelete='RESTRICT'),
                                                  nullable=False)
-    named = Column(Unicode(5))
+    named = Column(Unicode(50))
     position_ = Column(Integer)
     entry_value = Column(Unicode(20))
     section = relationship("InfoSection")
