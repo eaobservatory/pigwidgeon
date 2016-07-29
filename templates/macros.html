@@ -1,0 +1,67 @@
+{% macro render_commentform(search, submitbutton=True) %}
+<form>
+  <div class="formmajor">
+    <h2>Please enter your comments</h2>
+    {% for ptype in search.papertypes %}
+    <label>
+      {% if ptype.radio %}
+      <input type="radio" name="type" value="{{ptype.name_code}}">
+      {% else %}
+      <input type="checkbox" name="type" value="{{ptype.name_code}}">
+      {% endif %}
+      {{ptype.name_}}
+    </label><br/>
+    {% endfor %}
+  </div>
+  
+  {% for infosection in search.infosections %}
+  <div class="ftype">
+    <h3>{{infosection.name_}}</h3>
+    {% if infosection.type_ == 3 %}
+    <textarea name="{{infosection.name_code}}"
+	      rows="4"
+	      style="width:10em"
+	      placeholder="{{infosection.instructiontext}}"></textarea>
+    {% elif infosection.type_ == 2 %}
+    <textarea name="{{infosection.name_code}}"
+	      rows="7"
+	      style="width:18em"
+	      placeholder="{{infosection.instructiontext}}"></textarea>
+    {% endif %}
+    {% for sl in infosection.sublists %}
+    <input type="checkbox" name="{{infosection.name_code}}" value="{{sl.entry_value}}" id="{{sl.entry_value}}">
+    <label for="{{sl.entry_value}}">{{sl.named}}</label><br/>
+    {% endfor %}
+  </div>
+  {% endfor %}
+  {% if submit_button %}
+  <p><input type="submit" value="Submit"></p>
+  {% endif %}
+</form>
+{% endmacro %}
+
+
+{% macro render_hidden_searchform(search) %}
+<form method="POST" action="{{url_for('create_search')}}">
+  <input type="hidden" name="searchname" value="{{search.named}}"/>
+  <input type="hidden" name="adsquery" value="{{search.ads_query}}"/>
+  {% for i in range(search.papertypes|length) %}
+    <input type="hidden" name="ptname" value="{{search.papertypes[i].name_}}"/>
+    {% if search.papertypes[i].radio %}
+      <input type="hidden" name="ptradio{{(i|int+1)|string}}" value="on"/>
+    {% endif %}
+  {% endfor %}
+  {% for infosec in search.infosections %}
+    <input type="hidden" name="infoname" value="{{infosec.name_}}"/>
+    <input type="hidden" name="infotext" value="{{infosec.instructiontext}}"/>
+    <input type="hidden" name="infotype" value="{{infosec.type_}}"/>
+    {% if infosec.sublists %}
+      {% for sl in infosec.sublists %}
+      <input type="hidden" name="infosublistid" value="{{search.infosections.index(infosec) + 1}}"/>
+      <input type="hidden" name="infosublistentry" value="{{sl.named}}"/>
+      {% endfor %}
+    {% endif %}
+  {% endfor %}
+  <input type="submit" value="Submit">
+</form>
+{% endmacro %}

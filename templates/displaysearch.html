@@ -1,0 +1,44 @@
+{% from 'macros.html' import render_commentform, render_hidden_searchform %}
+<!DOCTYPE HTML>
+<html lang="en">
+    <head><title>Paper Monitoring: {{title}}</title>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" href="/static/layout.css" type="text/css" />
+	<link rel="stylesheet" href="/static/style.css" type="text/css" />
+	<link rel="stylesheet" href="/static/nonprint.css" media="not print" type="text/css" />
+	<link rel="stylesheet" href="/static/example.css" type="text/css" media="not print"/>
+    </head>
+
+    <body>
+	<ul id="navbar">
+	    <li><a href="/">All Searches</a></li>
+	    <li> {{ search_name }}</li>
+	    <li> <a href="/">new</a></li>
+	    <li> <a href="/">unchecked</a></li>
+	    <li> <a href="/">checked</a></li>
+	</ul>
+
+	<div id="paperinfo">
+	  {% if preview %}
+	  <h2>Your search is not yet created. The parameters you have selected are:</h2>
+	  {% elif create %}
+	  <h2> Thank you for creating a search. Your search parameters are:</h2>
+	  {% else %}
+	  <h2> This search is setup with the following parameters</h2>
+	  {% endif %}
+	  <h3>Search name: {{search.named}}</h3>
+	  <h3>ADS query:</h3>
+	  <p><tt>{{search.ads_query}}</tt></p>
+	  <h3>An example is provided of what your comment form will look like.</h3>
+	  {% if preview %}
+	  <p>If you are happy with your search, please create it
+	    below.</p>
+	  {{ render_hidden_searchform(search) }}
+	  {% endif %}
+	  </form>
+	</div>
+	<div id="form">
+	  {{ render_commentform(search, submitbutton=False) }}
+	</div>
+    </body>
+</html>

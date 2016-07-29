@@ -10,7 +10,7 @@
 
     <body>
 	<div id="form" style="width:38em">
-	    <form>
+	    <form method="POST" action="{{url_for('preview_search')}}">
 	      <h1>Search Creation</h1>
 	      <div class="formmajor">
 		<h3>Enter a search name</h3>
@@ -31,8 +31,8 @@
 		<table id="paperTable">
 		  <tr><th>Display name</th><th>Radio</th></tr>
 		  <tr>
-		    <td><input type="text" name="ptname0"></td>
-		    <td><input type="checkbox" name="ptradio0" id="radio"></td>
+		    <td><input type="text" name="ptname"></td>
+		    <td><input type="checkbox" name="ptradio1" id="radio"></td>
 		  </tr>
 		</table>
 	      </div>
@@ -64,8 +64,8 @@
 		    <td><select name="infotype">
 			<option value="0">Radio Boxes</option>
 			<option value="1">Check Boxes</option>
-			<option value="2">Text entry (1 per line)</option>
-			<option value="3">Text entry (free form)</option>
+			<option value="3">Text entry (1 per line)</option>
+			<option value="2">Text entry (free form)</option>
 		      </select>
 		    </td>
 		  </tr>
