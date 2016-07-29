@@ -1,0 +1,125 @@
+<!DOCTYPE HTML">
+<html lang="en">
+    <head><title>Paper Monitoring: {{title}}</title>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" href="/static/layout.css" type="text/css" />
+	<link rel="stylesheet" href="/static/style.css" type="text/css" />
+	<link rel="stylesheet" href="/static/nonprint.css" media="not print" type="text/css" />
+	<link rel="stylesheet" href="/static/example.css" type="text/css" media="not print"/>
+    </head>
+
+    <body>
+	<ul id="navbar">
+	    <li><a href="/">All Searches</a></li>
+	    <li> {{ search_name }}</li>
+	    <li> <a href="/">new</a></li>
+	    <li> <a href="/">unchecked</a></li>
+	    <li> <a href="/">checked</a></li>
+	</ul>
+
+
+	<div id="paperinfo">
+	    <h1>{{title}}</h1>
+	    <div id="authors">
+		    <ul class="horizontal">
+			{% for a in authors %}
+			<li class="horizitem">{{a.author}}</li>
+			{% endfor %}
+		    </ul>
+		  </div>
+
+		{% if keywords is defined and keywords is not none %}
+		<div id="keywords">
+		  <ul class="horizontal">
+		    {% for k in keywords %}
+		    <li>{{k.keyword}}</li>
+		    {% endfor %}
+		  </ul>
+		</div>
+		{% endif %}
+
+
+		<div id="abstract">
+		    <p>{{abstract|safe}}</p>
+		</div>
+
+
+		<div id="idents" style="display:inline-block">
+		    <dl class="inline">
+		      {% if arxiv is defined %}
+			<dt>arXiv</dt>
+			<dd>
+			    <a href="http://arxiv.org/abs/{{arxiv}}">
+			  {{arxiv}}
+			  </a>
+			</dd>
+			{% endif %}
+			{% if doi is defined %}
+			<dt>DOI</dt>
+			<dd>
+			    <a href="http://dx.doi.org/{{doi}}">
+				    {{doi}}
+			    </a>
+			</dd>
+			{% endif %}
+			<dt>ADS</dt>
+			<dd>
+			    <a href="http://adsabs.harvard.edu/abs/{{bibcode}}">
+				{{bibcode}}
+			    </a>
+			</dd>
+		    </dl>
+		</div>
+
+		<div id="properties">
+		    <ul class="horizontal" >
+		      {% for prop in properties %}
+		      {% if prop == 'PUB_OPENACCESS' %}
+		      <li><a href="{{pub_pdf_link}}">Pub. Open Access link</a></li>
+		      {% else %}
+		      <li>{{prop}}</li>
+		      {% endif %}
+		      {% endfor %}
+		    </ul>
+		</div>
+	</div>
+
+	<div id="form">
+	    <form>
+		<div class="formmajor">
+		  <h2>Please enter your comments</h2>
+
+		  {% for ptype in search_papertypes %}
+		  <label>
+		  <input type="radio" name="type" value="{{ptype.name_code}}">
+		  {{ptype.name_}}
+		  </label><br/>
+		  {% endfor %}
+		</div>
+
+		    {% for infosection in search_infosections %}
+		<div class="ftype">
+		    <h3>{{infosection.name_}}</h3>
+			{% if infosection.type_ == 3 %}
+			<textarea name="{{infosection.name_code}}"
+				  rows="4"
+				  style="width:10em"
+				  placeholder="{{infosection.instructiontext}}"></textarea>
+			{% elif infosection.type_ == 2 %}
+			<textarea name="{{infosection.name_code}}"
+				  rows="7"
+				  style="width:18em"
+				  placeholder="{{infosection.instructiontext}}"></textarea>
+			{% endif %}
+		    {% for sl in search_sublists[infosection.name_code] %}
+		    <input type="checkbox" name="{{infosection.name_code}}" value="{{sl.entry_value}}" id="{{sl.entry_value}}">
+		    <label for="{{sl.entry_value}}">{{sl.named}}</label><br/>
+		    {% endfor %}
+		    </div>
+		    {% endfor %}
+
+	    <p><input type="submit" value="Submit"></p>
+	    </form>
+	</div>
+    </body>
+</html>
