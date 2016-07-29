@@ -1,0 +1,91 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head><title>Search Creation</title>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" href="/static/layout.css" type="text/css" />
+	<link rel="stylesheet" href="/static/style.css" type="text/css" />
+	<link rel="stylesheet" href="/static/example.css" type="text/css" />
+	<script src="/static/javascript.js" language="Javascript" type="text/javascript"></script>
+    </head>
+
+    <body>
+	<div id="form" style="width:38em">
+	    <form>
+	      <h1>Search Creation</h1>
+	      <div class="formmajor">
+		<h3>Enter a search name</h3>
+		<input type="text" name="searchname" value=""/>
+		<br/>
+		<h3>Enter your ADS query string</h3>
+		<textarea name="adsquery" rows="5" style="width:25em"></textarea>
+		<h3>Create paper categories</h3>
+		<p>List all the categories which you want to classify
+		papers in. We recommend including a null match. The
+		categories will default to using check boxes, allowing
+		multiple choices; please select 'Radio' for any
+		category that you want a radio box for instead.</p>
+		<input type="button"
+		       value="Add an additional paper category"
+		       onClick="addInput('paperTable');">
+
+		<table id="paperTable">
+		  <tr><th>Display name</th><th>Radio</th></tr>
+		  <tr>
+		    <td><input type="text" name="ptname0"></td>
+		    <td><input type="checkbox" name="ptradio0" id="radio"></td>
+		  </tr>
+		</table>
+	      </div>
+	      <div class="">
+		<h3>Info sections</h3>
+		<p> You can configure multiple Info sections -- each
+		of these allows you to add extra information about a
+		paper. They can be setup to allow either a
+		predetermined set of choices, via radio boxes or check
+		boxes. Alternately they can allow text entry, either
+		through a free form entry box, or a region that
+		expects short texts, entered one per new line.
+		</p>
+		<input type="button"
+		       value="Add an additional information category"
+		       onClick="addInput('infotable');">
+		
+		<table id="infotable">
+		  <tr>
+		    <th>ID</th>
+		    <th>Descriptive name</th>
+		    <th>Instruction text for users </th>
+		    <th>Type</th>
+		  </tr>
+		  <tr>
+		    <td>1</td>
+		    <td><input type="text" name="infoname"></td>
+		    <td><input type="text" name="infotext"></td>
+		    <td><select name="infotype">
+			<option value="0">Radio Boxes</option>
+			<option value="1">Check Boxes</option>
+			<option value="2">Text entry (1 per line)</option>
+			<option value="3">Text entry (free form)</option>
+		      </select>
+		    </td>
+		  </tr>
+		</table>
+		<p>For any Info section where you select 'Radio boxes'
+		    or 'Check boxes', please list the set of options
+		    below. Use the ID from the Info section table
+		  above, and enter each option as a new entry.</p>
+		<input type="button" value="Add an additional information sublist"
+		       onClick="addInput('infosublist');">
+		<table id="infosublist">
+		  <tr><th>ID</th><th>Entries</th></tr>
+		  <tr>
+		    <td><input type="number" name="infosublistid"></td>
+		    <td><input type="text" name="infosublistentry"></td>
+		  </tr>
+		</table>
+	      </div>
+	      <input type="submit" value="Submit"></p>
+	    </form>
+	</div>
+    </body>
+</html>
