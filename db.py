@@ -157,8 +157,7 @@ class Property(Base):
                                           nullable=False)
     property = Column(Unicode(30), nullable=False)
     paper = relationship("Paper")
-    
-Session = sessionmaker(bind=engine)
-ses = Session()
+
+
 
 

@@ -1,0 +1,26 @@
+<!DOCTYPE HTML>
+<html lang="en">
+  <head>
+    <title>{% block title %} Paper Monitoring {% endblock %}</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="/static/layout.css" type="text/css" />
+    <link rel="stylesheet" href="/static/style.css" type="text/css" />
+    <link rel="stylesheet" href="/static/nonprint.css" media="not print" type="text/css" />
+    <link rel="stylesheet" href="/static/example.css" type="text/css" media="not print"/>
+    {% block scripts %}
+    {% endblock %}
+    </head>
+
+    <body>
+	<ul id="navbar">
+	    <li><a href="/">All Searches</a></li>
+	    <li> {{ search_name }}</li>
+	    <li> <a href="/">new</a></li>
+	    <li> <a href="/">unchecked</a></li>
+	    <li> <a href="/">checked</a></li>
+	</ul>
+
+	{% block body %}
+	{% endblock %}
+    </body>
+</html>

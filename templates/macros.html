@@ -1,5 +1,10 @@
-{% macro render_commentform(search, submitbutton=True) %}
+{% macro render_commentform(search, paper=None, submitbutton=True) %}
+
+{% if submitbutton is not defined or submitbutton is none %}
 <form>
+  {% else %}
+<form method="POST" action="{{url_for('submit_paper', searchid=search.id, paperid=paper.id)}}">
+  {% endif %}
   <div class="formmajor">
     <h2>Please enter your comments</h2>
     {% for ptype in search.papertypes %}
@@ -64,4 +69,70 @@
   {% endfor %}
   <input type="submit" value="Submit">
 </form>
+{% endmacro %}
+
+
+{% macro render_paper(paper) %}
+<div id="paperinfo">
+  <h1>{{title}}</h1>
+  <div id="authors">
+    <ul class="horizontal">
+      {% for a in paper.authors %}
+      <li class="horizitem">{{a.author}}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% if paper.keywords is defined and paper.keywords is not none %}
+  <div id="keywords">
+    <ul class="horizontal">
+      {% for k in paper.keywords %}
+      <li>{{k.keyword}}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <div id="abstract">
+    <p>{{paper.abstract|safe}}</p>
+  </div>
+  
+  <div id="idents" style="display:inline-block">
+    <dl class="inline">
+      {% if arxiv is defined %}
+      <dt>arXiv</dt>
+      <dd>
+	<a href="http://arxiv.org/abs/{{arxiv}}">
+	  {{arxiv}}
+	</a>
+      </dd>
+      {% endif %}
+      {% if doi is defined %}
+      <dt>DOI</dt>
+      <dd>
+	<a href="http://dx.doi.org/{{doi}}">
+	  {{doi}}
+	</a>
+      </dd>
+      {% endif %}
+      <dt>ADS</dt>
+      <dd>
+	<a href="http://adsabs.harvard.edu/abs/{{paper.bibcode}}">
+	  {{paper.bibcode}}
+	</a>
+      </dd>
+    </dl>
+  </div>
+
+  <div id="properties">
+    <ul class="horizontal" >
+
+      {% if paper.pub_openaccess and paper.pub_openaccess !='' %}
+      <li><a href="{{paper.pub_openaccess|pdflink}}">Pub. Open Access link</a></li>
+      {% endif %}
+      {% if paper.refereed %}
+      <li>Refereed</li>
+      {% endif %}
+    </ul>
+  </div>
+</div>
 {% endmacro %}

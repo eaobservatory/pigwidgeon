@@ -1,15 +1,13 @@
-<!DOCTYPE HTML>
-<html lang="en">
-    <head><title>Search Creation</title>
-	<meta charset="UTF-8">
-	<link rel="stylesheet" href="/static/layout.css" type="text/css" />
-	<link rel="stylesheet" href="/static/style.css" type="text/css" />
-	<link rel="stylesheet" href="/static/example.css" type="text/css" />
-	<script src="/static/javascript.js" language="Javascript" type="text/javascript"></script>
-    </head>
+{% extends "layout.html" %}
+{% block title %}
+PM: Search Creation
+{% endblock %}
+{% block scripts %}
+<script src="/static/javascript.js" language="Javascript" type="text/javascript"></script>
+{% endblock %}
 
-    <body>
-	<div id="form" style="width:38em">
+{% block body %}
+	<div id="form" style="width:38em; background:white" >
 	    <form method="POST" action="{{url_for('preview_search')}}">
 	      <h1>Search Creation</h1>
 	      <div class="formmajor">
@@ -87,5 +85,4 @@
 	      <input type="submit" value="Submit"></p>
 	    </form>
 	</div>
-    </body>
-</html>
+{% endblock %}
