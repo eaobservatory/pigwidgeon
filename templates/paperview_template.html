@@ -5,6 +5,6 @@
 {{ render_paper(paper) }}
 
 <div id="form">
-  {{ render_commentform(search, submitbutton=True) }}
+  {{ render_commentform(search, paper=paper, submitbutton=True) }}
 </div>
 {% endblock %}

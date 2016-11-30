@@ -16,6 +16,19 @@ PM: Search Creation
 		<br/>
 		<h3>Enter your ADS query string</h3>
 		<textarea name="adsquery" rows="5" style="width:25em"></textarea>
+		
+		<h3>Enter your start date</h3>
+		<input type="text" name="startdate" value="" placeholder='YYYYMM'/>
+		<h3>Enter your time period</h3>
+		<p>Your search will look back in time in the 'pubdate'
+		  period for this many months before it is
+		  run. E.g. if you set it to 3 months, it will check
+		  every entry in ads that matches your query with an
+		  additional <tt>pubdate &gt; currentdate -
+		  3months</tt> constraint. It will default to 3 months
+		  if not set.</p>
+		<input type="number" name="timerange">
+
 		<h3>Create paper categories</h3>
 		<p>List all the categories which you want to classify
 		papers in. We recommend including a null match. The

@@ -25,10 +25,14 @@ from sqlalchemy import create_engine, Column, ForeignKey, Unicode, UnicodeText, 
 from sqlalchemy.ext.declarative import declarative_base
 
 import werkzeug.exceptions
+import werkzeug.routing
 
-from db import Paper, Search, PaperType, InfoSection, InfoSublist
-from search import create_search_from_request
-from util import get_db_session
+from db import Paper, Search, PaperType, InfoSection, InfoSublist, Base
+from search import create_search_from_request, create_comment_from_request
+from paper import get_paper_info
+from util import get_db_session, create_session
+
+
 
 # Parse arguments
 arguments = docopt(__doc__, help=True)
@@ -50,13 +54,22 @@ def papertracking_webapp():
     Create web app for tracking paper relevancy.
 
     """
-    engine = create_engine('sqlite:///mydatabase.db')
+    app = Flask('Papermonitoring') 
+    session = create_session()
 
-    app = Flask('Papermonitoring')
+    @app.route('/')
+    def front_page():
+        # Get all currently setup searches.
+        searches = session.query(Search).all()
+
+        return render_template('frontpage.html', searches=searches)
 
     @app.route('/search/<searchid>/paper/<paperid>')
     def paper_info_page(paperid, searchid):
-        return render_template('paperview_template.html', **get_paper_info(paperid, searchid))
+        session = create_session()
+        search, paper = get_paper_info(paperid,searchid, session)
+
+        return render_template('paperview_template.html', paper=paper, search=search)
 
     @app.route('/search/preview', methods=['POST'])
     def preview_search():
@@ -67,18 +80,26 @@ def papertracking_webapp():
     @app.route('/search/create', methods=['POST'])
     def create_search():
         search = create_search_from_request(request)
-        ses = get_db_session(engine)
+        ses = session
         ses.add(search)
         ses.commit()
-        return render_template('displaysearch.html',
-                               search=search,
-                               preview=False, create=True)
+        searchid = search.id
+        raise werkzeug.routing.RequestRedirect(url_for('search_info_page',
+                                                       searchid=searchid, preview=False, create=True))
+
+    @app.route('/search/<searchid>/paper/<paperid>/submit_comments', methods=['POST'])
+    def submit_paper(paperid, searchid):
+        ses = session
+        comment = create_comment_from_request(request, ses)
+        raise werkzeug.exceptions.InternalServerError('paper comments submission not yet supported')
 
     @app.route('/search/<searchid>')
     def search_info_page(searchid):
-        ses = get_db_session(engine)
+        preview = request.args.get('preview', False) == 'True'
+        create = request.args.get('create', False) == 'True'
+        ses = session
         search = ses.query(Search).filter(Search.id==int(searchid)).one()
-        return render_template('displaysearch.html', search=search)
+        return render_template('displaysearch.html', search=search, preview=preview, create=create)
 
 
     @app.route('/search/setup')
@@ -86,74 +107,29 @@ def papertracking_webapp():
         # Create Search
         return render_template('searchcreation.html')
 
-    def get_paper_info(paperid, searchid):
-        """
-        Get summary info of paper.
-
-        Using testd b.
-        """
-
-        paperid = int(paperid)
-        searchid = int(searchid)
-
-        ses = get_db_session(engine)
-
-        # Get search and paper
-        search = ses.query(Search).filter(Search.id==searchid).one()
-        print(search)
-        paper = ses.query(Paper).filter(Paper.id==paperid).one()
-
-        # Check if paper is in search: display warning if not?
-        # More efficient way to do this?
-        if search.id in [i.id for i in paper.searches]:
-            paper_belongs = True
-        else:
-            paper_belongs = False
-
-        results = paper.__dict__.copy()
-        results['authors'] = paper.authors
-        results['keywords'] = paper.keywords
-        results['identifiers'] = paper.identifiers
-        results['properties'] = paper.properties
-
-        ses.commit()
-        results['search_name'] = search.named
-
-        # results = paperdict[paperid]
-        # # Fix up various things
-        # if not isinstance(results['doi'], str):
-        #     results['doi'] = results['doi'][0]
-        properties = set([i.property for i in results['properties']])
-        props_we_want=set(['REFEREED','PUB_OPENACCESS', 'NOT REFEREED'])
-        properties = props_we_want.intersection(properties)
-        results['properties'] = properties
-
-        if 'PUB_OPENACCESS' in results['properties']:
-             results['pub_pdf_link'] = "http://adsabs.harvard.edu/cgi-bin/nph-data_query?bibcode={}&link_type=ARTICLE".format(results['bibcode'])
-
-        identifiers = results['identifiers']
-        arxiv_1 = [i.identifier for i in identifiers if i.identifier.startswith('arXiv:')]
-        if arxiv_1:
-            results['arxiv'] = arxiv_1[0].split(':')[1]
-        else:
-            arxiv_2 = [i.identifier for i in identifiers if 'arXiv' in i.identifier]
-            if arxiv_2:
-                results['arxiv'] = arxiv_2[0]
-
-
-        # Search stuff.
-        results['search_papertypes'] = search.papertypes
-        print(search.papertypes)
-        results['search_infosections'] = search.infosections
-        results['search_sublists'] = {}
-        for i in search.infosections:
-            results['search_sublists'][i.name_code] = i.sublists
-        return results
-
     @app.template_filter('pdflink')
     def pdflink_filter(bibcode):
-        pdflink = "http://adsabs.harvard.edu/cgi-bin/nph-data_query?bibcode={}&link_type=ARTICLE"
+        pdflink = "http://adsabs.harvard.edu/cgi-bin/nph-data_query?bibcode={}&link_type=EJOURNAL"
         return pdflink.format(bibcode)
+
+    @app.template_filter('arxiv')
+    def arxiv_filter(paper):
+        arxiv = [i.identifier for i in paper.identifiers
+                 if 'arXiv' in i.identifier]
+        # Preferentially return the arXiv:XXXX format
+        if arxiv:
+            colonarxivs = [i for i in arxiv if ':' in i]
+            if colonarxivs:
+                return colonarxivs[0].split(':')[1]
+            else:
+                return arxiv[0]
+        else:
+            return None
+
+    @app.template_filter('classified_papers')
+    def classifed_papers(search):
+        return set([i.paper_id for i in search.papertypevalues])
+
     return app
 
 

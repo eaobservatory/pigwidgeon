@@ -1,7 +1,9 @@
-# -*- coding: utf-8 -*-
+# -*OA- coding: utf-8 -*-OA
 import ads
 import logging
-
+import datetime
+import sqlalchemy
+from db import Search, Paper, Identifier, Keyword, Author
 
 logger = logging.getLogger(__name__)
 
@@ -9,6 +11,19 @@ logger = logging.getLogger(__name__)
 #logging.getLogger("requests").setLevel(logging.WARNING)
 #logging.getLogger('urllib3').setLevel(logging.WARNING)
 
+
+def update_search(searchid, session):
+    search = session.query(Search).filter(Search.id==searchid).one()
+    #datefrom:
+    if search.last_performed is None:
+        datefrom=search.startdate
+    else:
+        # Roughly 3 months?
+        delta = datetime.timedelta(days=31*search.timerange)
+        datefrom = search.last_performed - delta
+    adsresults = get_ads_results(search.ads_query, datefrom=datefrom, dateto=None)
+    papers = [create_paper_objects(article, search) for article in adsresults]
+    add_papers_to_db(papers, session)
 
 # Does not have a test???
 def get_ads_results(querystring, datefrom=None, dateto=None):
@@ -25,6 +40,10 @@ def get_ads_results(querystring, datefrom=None, dateto=None):
     """
 
     # Set up correct date range if requeseted.
+    if datefrom:
+        datefrom = '\"{}\"'.format(datefrom.strftime('%Y-%m-%dT%H:%M:%S'))
+    if dateto:
+        dateto = '\"{}\"'.format(dateto.strftime('%Y-%m-%dT%H:%M:%S'))
     if datefrom and not dateto:
         dateto = '*'
     elif dateto and not datefrom:
@@ -32,22 +51,24 @@ def get_ads_results(querystring, datefrom=None, dateto=None):
 
     if datefrom and dateto:
         daterange = '[{0} TO {1}]'.format(datefrom, dateto)
-        querystring += ' AND pubdate:' + daterange
+        querystring = '({}) AND pubdate:{}'.format(querystring, daterange)
 
     # Define which values we want to get.
     fl=['id', 'abstract', 'doi', 'author', 'bibcode',
         'title', 'pubdate', 'property',
-        'keyword', 'identifier']
+        'keyword', 'identifier', 'alternate_bibcode', 'doctype']
 
-
+    print('Querying ads with {}'.format(querystring))
     # Carry out query.
     query = ads.search.SearchQuery(q=querystring, sort='date asc', fl=fl)
     query.execute()
+    print('Found {} articles'.format(query.progress))
     logger.debug('Found {0} articles'.format(query.progress))
 
     # I'm sure there's a more correct way to do this?
     while len(query.articles) < query.response.numFound:
         query.execute()
+        print('Found {} articles'.format(query.progress))
         logger.debug('Found {0} articles'.format(query.progress))
 
     logger.info('Retrieved records for {0} articles.'.format(
@@ -55,27 +76,37 @@ def get_ads_results(querystring, datefrom=None, dateto=None):
     return query.articles
 
 
-def create_paper_objects(article):
+def create_paper_objects(article, search):
     """
     Turn ADS article object into DB Paper object.
     """
     pub_openaccess =  'PUB_OPENACCESS' in article.property
     refereed = 'REFEREED' in article.property
-
+    authors = [Author(author=i, position_=article.author.index(i)) for i in article.author]
     ids=[Identifier(identifier=i) for i in article.identifier]
-    keywords = [Keyword(keyword=k) for k in article.keyword]
-
+    if article.keyword:
+        keywords = [Keyword(keyword=k) for k in article.keyword]
+    else:
+        keywords=[]
+    if article.doi:
+        if len(article.doi) > 1:
+            print('Found multiple dois for {}: {}'.format(article.bibcode, article.di))
+        doi=article.doi[0]
+    else:
+        doi=None
     paper = Paper(bibcode = article.bibcode,
-                  title = article.title,
+                  title = article.title[0],
                   abstract = article.abstract,
-                  doi = article.doi,
-                  pub_openaccess = pub_openacces,
+                  doi = doi,
+                  pub_openaccess = pub_openaccess,
                   refereed = refereed,
                   identifiers = ids,
-                  keywords = keywords)
+                  keywords = keywords,
+                  authors=authors,
+                  searches=[search])
     return paper
 
-def add_papers_to_db(papers, databaseidentifier):
+def add_papers_to_db(papers, session):
     """
     Add a list of paper objects to database.
 
@@ -84,10 +115,9 @@ def add_papers_to_db(papers, databaseidentifier):
     information as necessary.
 
     """
-    engine = create_engine(databaseidentifier)
-    Session = sessionmaker(bind=engine)
-    session = Session()
 
+    updated=set()
+    new=set()
     for paper in papers:
         # First check if paper in db:
         match = check_if_paper_in_db(paper, session)
@@ -95,44 +125,90 @@ def add_papers_to_db(papers, databaseidentifier):
         # If no match, add paper as new paper
         if not match:
             session.add(paper)
-
+            logger.debug('Added {}: to database'.format(paper.title))
+            new.add(paper.bibcode)
         # If there is a match, check if it needs to be updated.
         else:
-            check_and_update(paper, session)
+            updated.update(check_and_update(match,paper, session))
+    session.commit()
+    logger.info('Added {} new papers to database.'.format(len(new)))
+    logger.info('Update {} existing papers in database.'.format(len(updated)))
 
 
+def check_and_update(match, paper, session):
+    """
+    Check if a new version of a paper needs to overwrite an old one.
+
+    This would be much more efficient if there was a last_modified date in ADS.
+
+    Returns the id if anything was updated.
+    """
+    # Check single values:
+    # bibcode, title, abstract, doi, pub_opeanccess, refered.
+    updateset=set()
+    print('Updating title, bibcode, abstract, pub etc for {}'.format(match.title))
+    for attrib in ['title', 'bibcode', 'abstract', 'pub_openaccess',
+                   'refereed', 'doi', 'pubdate']:
+        if getattr(match, attrib) != getattr(paper, attrib):
+            setattr(match, attrib, getattr(paper, attrib))
+            updateset.add(attrib)
+
+    if (set([i.identifier for i in paper.identifiers]) !=
+        set([i.identifier for i in match.identifiers])):
+        for i in match.identifiers:
+            session.delete(i)
+        match.identifiers = paper.identifiers.copy()
+        updateset.add('identifiers')
+
+    if (set([i.keyword for i in paper.keywords]) !=
+        set([i.keyword for i in match.keywords])):
+        for i in match.keywords:
+            session.delete(i)
+        match.keywords = paper.keywords.copy()
+        updateset.add('keywords')
+
+    if (set([i.property for i in paper.properties]) !=
+        set([i.property for i in match.properties])):
+        for i in match.properties:
+            session.delete(i)
+        match.properties = paper.properties.copy()
+        updateset.add('properties')
+    if (set([(i.position_,i.author) for i in paper.authors]) !=
+        set([(i.position_,i.author) for i in match.authors])):
+        for i in match.authors:
+            session.delete(i)
+        match.authors = paper.authors.copy()
+        updateset.add('authors')
+
+    # Searches: this should include all, not replace
+    if (set([i.id for i in paper.searches]) !=
+        set([i.id for i in match.searches])):
+        match.searches += paper.searches
+
+    session.flush()
+    session.commit()
+    session.flush()
+    return updateset
+    ""
 
 
 def check_if_paper_in_db(paper, session):
 
     # If bibcode matches, then definitely in
     try:
-        match = session.query(Paper).filter(Paper.bibcode==bibcode).one()
+        match = session.query(Paper).filter(Paper.bibcode==paper.bibcode).one()
     except sqlalchemy.orm.exc.NoResultFound:
         # Check all identifiers
         try:
-            match = ses.query(Paper).join(Identifier).filter(
-                Identifier.identifier.in_(paper.identifiers)).one()
-        except sqlalchemy.orm.exc.NoresultFound:
+            match = session.query(Paper).join(Identifier).filter(
+                Identifier.identifier.in_([i.identifier for i in paper.identifiers])
+            ).one()
+        except sqlalchemy.orm.exc.NoResultFound:
             match = None
     # Add check for multiple results? Don't know if this ever can
     # happen?
+    if match:
+        logger.debug('{} already in DB'.format(paper.title))
     return match
 
 
-def create_new_search(name, ads_querystring,
-                   startdate,
-                   papertypes,
-                   infosections):
-    """
-    Add a new search.
-
-    name: string, short name for search
-    ads_querystring: string to pass to ads to perform query
-    startdate: first date to start checking from.
-    papertypes: ordered list of PaperType objects
-    infosections: ordered list of InfoSection objects
-
-    """
-    Search(name=name,
-           ads_query

@@ -3,16 +3,20 @@
 {% if submitbutton is not defined or submitbutton is none %}
 <form>
   {% else %}
-<form method="POST" action="{{url_for('submit_paper', searchid=search.id, paperid=paper.id)}}">
+  <form method="POST" action="{{url_for('submit_paper', searchid=search.id, paperid=paper.id)}}">
+    <input type="hidden" name="searchid" value="{{search.id}}"/>
+    {% if paper is defined %}
+    <input type="hidden" name="paperid" value="{{paper.id}}"/>
+    {% endif %}
   {% endif %}
   <div class="formmajor">
     <h2>Please enter your comments</h2>
     {% for ptype in search.papertypes %}
     <label>
       {% if ptype.radio %}
-      <input type="radio" name="type" value="{{ptype.name_code}}">
+      <input type="radio" name="papertype" value="{{ptype.name_code}}">
       {% else %}
-      <input type="checkbox" name="type" value="{{ptype.name_code}}">
+      <input type="checkbox" name="papertype" value="{{ptype.name_code}}">
       {% endif %}
       {{ptype.name_}}
     </label><br/>
@@ -23,23 +27,23 @@
   <div class="ftype">
     <h3>{{infosection.name_}}</h3>
     {% if infosection.type_ == 3 %}
-    <textarea name="{{infosection.name_code}}"
+    <textarea name="infosection_{{infosection.name_code}}"
 	      rows="4"
 	      style="width:10em"
 	      placeholder="{{infosection.instructiontext}}"></textarea>
     {% elif infosection.type_ == 2 %}
-    <textarea name="{{infosection.name_code}}"
+    <textarea name="infosection_{{infosection.name_code}}"
 	      rows="7"
 	      style="width:18em"
 	      placeholder="{{infosection.instructiontext}}"></textarea>
     {% endif %}
     {% for sl in infosection.sublists %}
-    <input type="checkbox" name="{{infosection.name_code}}" value="{{sl.entry_value}}" id="{{sl.entry_value}}">
+    <input type="checkbox" name="infosection_{{infosection.name_code}}" value="{{sl.entry_value}}" id="{{sl.entry_value}}">
     <label for="{{sl.entry_value}}">{{sl.named}}</label><br/>
     {% endfor %}
   </div>
   {% endfor %}
-  {% if submit_button %}
+  {% if submitbutton %}
   <p><input type="submit" value="Submit"></p>
   {% endif %}
 </form>
@@ -50,6 +54,7 @@
 <form method="POST" action="{{url_for('create_search')}}">
   <input type="hidden" name="searchname" value="{{search.named}}"/>
   <input type="hidden" name="adsquery" value="{{search.ads_query}}"/>
+  <input type="hidden" name="startdate" value="{{search.startdate.strftime('%Y%m')}}">
   {% for i in range(search.papertypes|length) %}
     <input type="hidden" name="ptname" value="{{search.papertypes[i].name_}}"/>
     {% if search.papertypes[i].radio %}
@@ -60,6 +65,7 @@
     <input type="hidden" name="infoname" value="{{infosec.name_}}"/>
     <input type="hidden" name="infotext" value="{{infosec.instructiontext}}"/>
     <input type="hidden" name="infotype" value="{{infosec.type_}}"/>
+
     {% if infosec.sublists %}
       {% for sl in infosec.sublists %}
       <input type="hidden" name="infosublistid" value="{{search.infosections.index(infosec) + 1}}"/>
@@ -74,7 +80,7 @@
 
 {% macro render_paper(paper) %}
 <div id="paperinfo">
-  <h1>{{title}}</h1>
+  <h1>{{paper.title}}</h1>
   <div id="authors">
     <ul class="horizontal">
       {% for a in paper.authors %}
@@ -93,30 +99,42 @@
   {% endif %}
 
   <div id="abstract">
+    {% if paper.abstract %}
     <p>{{paper.abstract|safe}}</p>
+    {% else %}
+    <p> No abstract found </p>
+    {% endif %}
   </div>
-  
+
   <div id="idents" style="display:inline-block">
+    {% for identif in paper.identifers %}
+    <p>test</p>
+    {% endfor %}
     <dl class="inline">
-      {% if arxiv is defined %}
+      {% for ident in paper.identifiers if 'arXiv' in ident.identifier%}
+      {% if loop.index==1 %}
+      {% set arxiv = ident.identifier.split('arXiv')[1] %}
       <dt>arXiv</dt>
       <dd>
-	<a href="http://arxiv.org/abs/{{arxiv}}">
-	  {{arxiv}}
+	
+	<a href="http://arxiv.org/abs/{{arxiv[0:4]}}.{{arxiv[4:-1]}}">
+	  {{ident.identifier}}
 	</a>
       </dd>
       {% endif %}
-      {% if doi is defined %}
+      {% endfor %}
+
+      {% if paper.doi %}
       <dt>DOI</dt>
       <dd>
-	<a href="http://dx.doi.org/{{doi}}">
-	  {{doi}}
+	<a href="http://dx.doi.org/{{paper.doi}}">
+	  {{paper.doi}}
 	</a>
       </dd>
       {% endif %}
       <dt>ADS</dt>
       <dd>
-	<a href="http://adsabs.harvard.edu/abs/{{paper.bibcode}}">
+	<a href="https://ui.adsabs.harvard.edu/#abs/{{paper.bibcode}}">
 	  {{paper.bibcode}}
 	</a>
       </dd>
@@ -127,12 +145,25 @@
     <ul class="horizontal" >
 
       {% if paper.pub_openaccess and paper.pub_openaccess !='' %}
-      <li><a href="{{paper.pub_openaccess|pdflink}}">Pub. Open Access link</a></li>
+      <li><a href="{{paper.bibcode|pdflink}}">Pub. Open Access link</a></li>
       {% endif %}
-      {% if paper.refereed %}
+      {% if paper.refereed  %}
       <li>Refereed</li>
+      {% else %}
+      <li> Not refereed</li>
       {% endif %}
     </ul>
   </div>
+  <div id="dates">
+    <p>First added: {{paper.first_added}}
+    {% if paper.updated %}
+    <br/>
+    Last Updated: {{paper.updated}}
+    {% endif %}
+    </p>
+
+  </div>
 </div>
 {% endmacro %}
+
+

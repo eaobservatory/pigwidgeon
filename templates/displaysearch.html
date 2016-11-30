@@ -19,12 +19,15 @@
 	</ul>
 
 	<div id="paperinfo">
-	  {% if preview %}
+	  {% if preview == true %}
 	  <h2>Your search is not yet created. The parameters you have selected are:</h2>
-	  {% elif create %}
+	  {% elif create == true %}
 	  <h2> Thank you for creating a search. Your search parameters are:</h2>
 	  {% else %}
 	  <h2> This search is setup with the following parameters</h2>
+	  {% endif %}
+	  {% if search.id is defined %}
+	  <h3>Search ID: {{search.id}}</h3>
 	  {% endif %}
 	  <h3>Search name: {{search.named}}</h3>
 	  <h3>ADS query:</h3>
@@ -38,7 +41,7 @@
 	  </form>
 	</div>
 	<div id="form">
-	  {{ render_commentform(search, paper=False, submitbutton=False) }}
+	  {{ render_commentform(search, paper=False, submitbutton=None) }}
 	</div>
     </body>
 </html>
