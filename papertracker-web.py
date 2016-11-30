@@ -1,12 +1,13 @@
 """
 Usage: papertracker-web.py [-h]
-       papertracker-web.py [-d]
+       papertracker-web.py [-d] [--port=port]
 
 Launch a web page for testing
 
 Options:
   -h --help  Show this help.
   -d --debug    Run using flasks debug mode. Allows reloading of code.
+  -p --port=port  Port to run on (defaul tis 5000)
 
 
 """
@@ -37,6 +38,11 @@ if arguments['--debug'] is True:
 else:
     host='0.0.0.0'
     debug = None
+
+if arguments['--port']:
+    port = int(arguments['--port'])
+else:
+    port = 5000
 
 
 def papertracking_webapp():
@@ -154,4 +160,4 @@ def papertracking_webapp():
 
 # Start flask app.
 app = papertracking_webapp()
-app.run(host=host, debug=debug)
+app.run(host=host, debug=debug, port=port)
