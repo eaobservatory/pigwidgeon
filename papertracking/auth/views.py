@@ -114,7 +114,7 @@ def create_search():
     ses.add(search)
     ses.commit()
     searchid = search.id
-    raise werkzeug.routing.RequestRedirect(url_for('search_info_page',
+    raise werkzeug.routing.RequestRedirect(url_for('auth.search_info_page',
                                                    searchid=searchid, preview=False, create=True))
 
 @auth.route('/search/<searchid>/paper/<paperid>/submit_comments', methods=['POST'])
