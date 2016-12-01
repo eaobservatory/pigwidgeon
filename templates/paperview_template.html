@@ -1,5 +1,6 @@
 {% extends "layout.html" %}
-{% from "macros.html" import render_commentform, render_paper %}
+{% from "macros.html" import render_commentform with context %}
+{% from "macros.html" import render_paper with context%}
 {% block body %}
 
 {{ render_paper(paper) }}

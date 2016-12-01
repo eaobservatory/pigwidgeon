@@ -1,0 +1,31 @@
+{% extends "layout.html" %}
+
+{% block body %}
+
+  <h2> Papers for search {{search.named}} </h2>
+  {% if search.papers %}
+  <table>
+     <tr>
+       <th>ID</th>
+       <th>Bibcode</th>
+       <th>Title</th>
+       <th>First Author</th>
+       <th>Classif. Count</th>
+       <th>Refereed</th>
+     </tr>
+  {% for paper in search.papers|sort(attribute='id') %}
+     <tr>
+       <td>{{paper.id}}</td>
+       <td>{{paper.bibcode}}</td>
+       <td><a href="{{url_for('auth.paper_info_page', searchid=search.id, paperid=paper.id)}}">{{paper.title}}</a></td>
+       <td>{{ paper.authors[0].author }}</td>
+       <td>{{paper.papertypevalues | length}}</td>
+       <td>{% if paper.refereed %}✓{% else %} ✗ {% endif %}</td>
+     </tr>
+   {% endfor %}
+  </table>
+{% endif %}
+
+
+
+{% endblock %}

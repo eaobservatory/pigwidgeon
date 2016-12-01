@@ -102,7 +102,11 @@ def create_search_from_request(request):
 
     # Infosection sublist information.
     infosublistids = request.form.getlist('infosublistid')
+    if infosublistids == ['']:
+        infosublistids = None
     infosublistentries = request.form.getlist('infosublistentry')
+    if infosublistentries == ['']:
+        infosublistentries = None
 
     # Connect infosection and infosublists
     if infosublistids and infosublistentries:

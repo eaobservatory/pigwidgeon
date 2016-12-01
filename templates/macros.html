@@ -1,10 +1,12 @@
 {% macro render_commentform(search, paper=None, submitbutton=True) %}
 
+{% if current_user.is_authenticated %}
 {% if submitbutton is not defined or submitbutton is none %}
 <form>
   {% else %}
-  <form method="POST" action="{{url_for('submit_paper', searchid=search.id, paperid=paper.id)}}">
+  <form method="POST" action="{{url_for('auth.submit_paper', searchid=search.id, paperid=paper.id)}}">
     <input type="hidden" name="searchid" value="{{search.id}}"/>
+    <input type="hidden" name="username" value="{{current_user.username}}"/>
     {% if paper is defined %}
     <input type="hidden" name="paperid" value="{{paper.id}}"/>
     {% endif %}
@@ -22,7 +24,7 @@
     </label><br/>
     {% endfor %}
   </div>
-  
+
   {% for infosection in search.infosections %}
   <div class="ftype">
     <h3>{{infosection.name_}}</h3>
@@ -47,11 +49,20 @@
   <p><input type="submit" value="Submit"></p>
   {% endif %}
 </form>
+{% else %}
+
+<form>
+<div class="formmajor">
+Please login to submit paper updates.
+</div>
+</form>
+{% endif %}
+
 {% endmacro %}
 
 
 {% macro render_hidden_searchform(search) %}
-<form method="POST" action="{{url_for('create_search')}}">
+<form method="POST" action="{{url_for('auth.create_search')}}">
   <input type="hidden" name="searchname" value="{{search.named}}"/>
   <input type="hidden" name="adsquery" value="{{search.ads_query}}"/>
   <input type="hidden" name="startdate" value="{{search.startdate.strftime('%Y%m')}}">

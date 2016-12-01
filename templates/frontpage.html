@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+
+
+{% block body %}
+{% if searches %}
+  <h2> Current searches </h2>
+  <table>
+     <tr>
+       <th>Name</th>
+       <th>query string</th>
+       <th>Last performed</th>
+       <th>Number Papers</th>
+       <th>Number classified (by anyone)</th>
+     </tr>
+  {% for search in searches %}
+     <tr>
+       <td><a href="{{url_for('auth.search_info_page', searchid=search.id)}}">{{search.named}}</a></td>
+       <td>{{search.ads_query}}</td>
+       <td>{{search.last_performed}}</td>
+       <td><a href="{{url_for('auth.search_paper_list', searchid=search.id)}}">{{search.papers|length}}</a></td>
+       <td>{{search | classified_papers | length}}</td></t5>
+     </tr>
+   {% endfor %}
+  </table>
+{% endif %}
+
+
+
+{% endblock %}

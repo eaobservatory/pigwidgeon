@@ -15,9 +15,16 @@
 	<ul id="navbar">
 	    <li><a href="/">All Searches</a></li>
 	    <li> {{ search_name }}</li>
-	    <li> <a href="/">new</a></li>
+	    <li> <a href="{{url_for('auth.search_setup_page')}}">new search</a></li>
 	    <li> <a href="/">unchecked</a></li>
 	    <li> <a href="/">checked</a></li>
+            <li class="login">
+              {% if current_user.is_authenticated %}
+              <a href="{{url_for('auth.logout')}}">{{current_user.username}}</a>
+                {% else %}
+              <a href="{{url_for('auth.login', next=request.referrer)}}"> login </a>
+              {% endif %}
+            </li>
 	</ul>
 
 	{% block body %}
