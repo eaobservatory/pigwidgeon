@@ -36,8 +36,8 @@ class Paper(Base):
     keywords = relationship("Keyword")
     properties = relationship("Property")
     authors = relationship("Author", order_by="Author.position_")
-    searches = relationship("Search", secondary=ps_association_table,
-                            backref="papers")
+    searches = relationship("Search", secondary=ps_association_table)
+
     papertypevalues = relationship("PaperTypeValue")
 
     def __repr__(self):
@@ -77,7 +77,7 @@ class Search(Base):
     papertypes = relationship("PaperType", order_by="PaperType.position_")
     papertypevalues = relationship("PaperTypeValue")
     infosections = relationship("InfoSection", order_by="InfoSection.position_")
-
+    papers = relationship("Paper", secondary=ps_association_table)
 
 
 class PaperType(Base):
