@@ -22,7 +22,7 @@
               {% if current_user.is_authenticated %}
               <a href="{{url_for('auth.logout')}}">{{current_user.username}}</a>
                 {% else %}
-              <a href="{{url_for('auth.login', next=request.referrer)}}"> login </a>
+              <a href="{{url_for('auth.login', next=request.path)}}"> login </a>
               {% endif %}
             </li>
 	</ul>

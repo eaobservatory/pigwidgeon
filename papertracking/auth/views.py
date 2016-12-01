@@ -5,6 +5,7 @@ from docopt import docopt
 import functools
 import os
 from flask import Flask, redirect, url_for, render_template, request
+import flask
 
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy import create_engine, Column, ForeignKey, Unicode, UnicodeText, \
@@ -78,8 +79,17 @@ def login():
     form = LDAPLoginForm()
 
     if form.validate_on_submit():
+
         login_user(form.user)
-        return redirect('/')
+        flask.flash('Logged in successful')
+        next = flask.request.args.get('next')
+        print('next is ')
+        print(next)
+        if not is_safe_url(next):
+            return flask.abort(400)
+
+        return redirect(next or url_for('auth.front_page'))
+
     return render_template_string(template, form=form)
 
 
@@ -160,3 +170,14 @@ def arxiv_filter(paper):
 @app.template_filter('classified_papers')
 def classifed_papers(search):
     return set([i.paper_id for i in search.papertypevalues])
+
+
+
+from urllib.parse import urlparse, urljoin
+from flask import request, url_for
+
+def is_safe_url(target):
+    ref_url = urlparse(request.host_url)
+    test_url = urlparse(urljoin(request.host_url, target))
+    return test_url.scheme in ('http', 'https') and \
+           ref_url.netloc == test_url.netloc
