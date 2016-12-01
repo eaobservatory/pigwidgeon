@@ -1,7 +1,7 @@
 from sqlalchemy.orm import sessionmaker
 import os
 from sqlalchemy import create_engine
-from db import Base
+from .db import Base
 
 # State for the info sublists
 class isType:

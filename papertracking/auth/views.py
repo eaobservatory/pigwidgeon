@@ -15,10 +15,10 @@ import werkzeug.exceptions
 import werkzeug.routing
 
 
-from db import Paper, Search, PaperType, InfoSection, InfoSublist, Base
-from search import create_search_from_request, create_comment_from_request
-from paper import get_paper_info
-from util import get_db_session, create_session
+from ..db import Paper, Search, PaperType, InfoSection, InfoSublist, Base
+from ..search import create_search_from_request, create_comment_from_request
+from ..paper import get_paper_info
+from ..util import get_db_session, create_session
 
 
 

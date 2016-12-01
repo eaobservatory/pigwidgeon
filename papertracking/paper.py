@@ -1,4 +1,4 @@
-from db import Search, Paper
+from .db import Search, Paper
 def get_paper_info(paperid, searchid, session):
     """
     Get summary info of paper.

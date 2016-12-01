@@ -4,8 +4,8 @@ Functions related to search creation and viewing
 
 import werkzeug.exceptions
 
-from db import Search, PaperType, InfoSection, InfoSublist, PaperTypeValue, InfoSectionValue
-from util import isType
+from .db import Search, PaperType, InfoSection, InfoSublist, PaperTypeValue, InfoSectionValue
+from .util import isType
 import datetime
 
 def create_comment_from_request(request, ses):
