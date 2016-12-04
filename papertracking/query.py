@@ -3,7 +3,8 @@ import ads
 import logging
 import datetime
 import sqlalchemy
-from db import Search, Paper, Identifier, Keyword, Author
+import itertools
+from .db import Search, Paper, Identifier, Keyword, Author
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,7 @@ def get_ads_results(querystring, datefrom=None, dateto=None):
         querystring = '({}) AND pubdate:{}'.format(querystring, daterange)
 
     # Define which values we want to get.
-    fl=['id', 'abstract', 'doi', 'author', 'bibcode',
+    fl=['id', 'abstract', 'doi', 'author', 'aff', 'bibcode',
         'title', 'pubdate', 'property',
         'keyword', 'identifier', 'alternate_bibcode', 'doctype']
 
@@ -88,7 +89,8 @@ def create_paper_objects(article, search):
     """
     pub_openaccess =  'PUB_OPENACCESS' in article.property
     refereed = 'REFEREED' in article.property
-    authors = [Author(author=i, position_=article.author.index(i)) for i in article.author]
+    authorlist = list(itertools.zip_longest(article.author, article.aff))
+    authors = [Author(author=i, position_=article.author.index(i), affiliation=a) for i,a in authorlist]
     ids=[Identifier(identifier=i) for i in article.identifier]
     if article.keyword:
         keywords = [Keyword(keyword=k) for k in article.keyword]
@@ -196,8 +198,8 @@ def check_and_update(match, paper, session, dryrun=False):
             match.properties = paper.properties.copy()
 
         updateset.add('properties')
-    if (set([(i.position_,i.author) for i in paper.authors]) !=
-        set([(i.position_,i.author) for i in match.authors])):
+    if (set([(i.position_,i.author,i.affiliation) for i in paper.authors]) !=
+        set([(i.position_,i.author,i.affiliation) for i in match.authors])):
         if not dryrun:
             for i in match.authors:
                 session.delete(i)

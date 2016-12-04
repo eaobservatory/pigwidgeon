@@ -61,6 +61,7 @@ class Author(Base):
            ForeignKey('papers.id', onupdate='RESTRICT', ondelete='RESTRICT'))
     author = Column('author', Unicode(20), nullable=False)
     position_ = Column('position_', Integer, nullable=False)
+    affiliation = Column(UnicodeText)
     paper = relationship("Paper")
     def __repr__(self):
         return "<Author(author={})".format(self.author)
