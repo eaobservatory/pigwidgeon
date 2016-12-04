@@ -131,36 +131,44 @@ dl {list-style-type: ordered}
 #selectable li{ margin: 3px; padding: 0.4em; font-size: 1.4em; height:18px;}
 
 
-ul.horizontal >li {display:inline-block; }/*padding-right:0.3em}*/
+ul.keywords >li {display:inline-block; }/*padding-right:0.3em}*/
+
+ul {
+    margin:0.5em;
+    list-style-type:square;
+    list-style-position:inside;
+    padding-left:0px;
+}
 
 div#authors{letter-spacing:1px; margin-top:0.5em}
-ul.horizontal {display:inline-block;
-	       padding:0em;margin:0px; padding-top:0px;/* color:white;*/
+ul.authors{ display:block }
+ul.horizontal {
+	       padding:0em;margin-left:2em; padding-top:0px;/* color:white;*/
 	       font-variant:small-caps;
 	       font-family: Gill Sans, Verdana;
 	      }
 
-span.aff{font-size:0.9em; color:white}
+span.aff{font-size:0.8em; font-variant:normal; font-style: italic;}
 
 div#keywords {
     font-size:small;
     margin-top:0.5em;
 }
 
-ul.horizontal >li:after{
-    content:'•';
-    padding-left:0.5em;
-    padding-right:0.5em;
-}
+ ul.keywords >li:after{
+     content:'•';
+     padding-left:0.5em;
+     padding-right:0.5em;
+ }
 
-ul.horizontal >li:last-child:after{
-    content:'';
-}
+ ul.horizontal >li:last-child:after{
+     content:'';
+ }
 
 div#form{
     display:inline-block;
     /*padding-top:2em;*/
-    width:28em;
+    max-width:45em;
 /*    border:medium solid black;*/
     border-radius:1ex;
     padding:1em;
@@ -173,7 +181,7 @@ div#form{
 
 
 
-div#form .form{
+div#form .form, div#comment{
     display:inline-block;
     min-width:25em;
 }

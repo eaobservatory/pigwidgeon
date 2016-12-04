@@ -93,15 +93,26 @@ Please login to submit paper updates.
 <div id="paperinfo">
   <h1>{{paper.title}}</h1>
   <div id="authors">
-    <ul class="horizontal">
+    <ul class="horizontal authors">
+      {% if paper.authors | length > 3 %}
+      {% set authortable = True %}
+      <li class="horizitem">{{paper.authors[0].author}} <span class="aff">{{paper.authors[0].affiliation}}</span></li>
+      <li class="horizitem"> Another {{paper.authors |length - 1 }}
+        coauthors at {{paper.authors[1:]|unique_affils |length}} unique institutions. (see below)</li>
+      {% else %}
       {% for a in paper.authors %}
-      <li class="horizitem">{{a.author}}</li>
+      <li class="horizitem">{{a.author}}
+        {% if a.affiliation %}
+        <span class="aff">{{a.affiliation}}</span>
+        {% endif %}
+      </li>
       {% endfor %}
+      {% endif %}
     </ul>
   </div>
   {% if paper.keywords is defined and paper.keywords is not none %}
   <div id="keywords">
-    <ul class="horizontal">
+    <ul class="horizontal keywords">
       {% for k in paper.keywords %}
       <li>{{k.keyword}}</li>
       {% endfor %}
