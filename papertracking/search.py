@@ -4,7 +4,7 @@ Functions related to search creation and viewing
 
 import werkzeug.exceptions
 
-from .db import Search, PaperType, InfoSection, InfoSublist, PaperTypeValue, InfoSectionValue
+from .db import Search, PaperType, InfoSection, InfoSublist, PaperTypeValue, InfoSectionValue, Comment
 from .util import isType
 import datetime
 
@@ -16,42 +16,66 @@ def create_comment_from_request(request, ses):
     print(request.form)
     searchid = int(request.form.get('searchid', None))
     paperid = int(request.form.get('paperid', None))
-    #username = request.authorization('username')
-    username = 'sgraves'
+    username = request.form.get('username')
+
+    comment = Comment(search_id=searchid, paper_id=paperid, username=username)
     search = ses.query(Search).filter(Search.id==int(searchid)).one()
     infosections = search.infosections
-    for i in infosections:
-        if i.sublists:
-            for s in i.sublists:
-                print(s.named, s.position_, s.entry_value)
 
-    papertypes = request.form.getlist('papertype')
-    papertypevalues = [PaperTypeValue(search_id=searchid, paper_id=paperid,
-                                      username=username, value_=int(i))
-                       for i in papertypes]
+    #for i in infosections:
+    #    if i.sublists:
+    #        for s in i.sublists:
+    #            print(s.named, s.position_, s.entry_value)
 
-    num_infosections = len(search.infosections)
+    # First: papertypes
+    papertype_ids = request.form.getlist('papertype')
+    papertypevalues = [PaperTypeValue(papertype_id=int(i), comment=comment)
+                       for i in papertype_ids]
+
+    # Second: all remaining infosection comments
+    # 0. List to hold results:
     isvalues = []
-    for i in range(num_infosections):
-        value = request.form.get('infosection_' + str(i), None)
-        if value:
-            isection = [s for s in search.infosections if int(s.name_code)==i][0]
-            if isection.type_  in [isType.RADIO, isType.CHECK]:
-                entered_choice = int(value)
-                entered_text = None
-                print('Value is now {}'.format(value))
-            else:
-                entered_text = value
-                entered_choice=None
+
+    # 1. get the keys form the comment dictionary.
+    infosections = [i for i in request.form.keys() if i.startswith('infosection_')]
+
+    # For each one, get the infosecitonid, the sublistid, and the value
+    infosectionid = [int(i.split('_')[1]) for i in infosections]
+
+    # Now go through each InfoSection key, and create an InfoSectionValue object.
+    for isid in infosectionid:
+        isection = [s for s in search.infosections if int(s.id)==isid][0]
+        values = request.form.getlist('infosection_'+str(isid))
+
+        if isection.type_  in [isType.RADIO, isType.CHECK]:
+            for value in values:
+                isvalues.append(InfoSectionValue(info_section_id=isid,
+                                                 info_sublist_id=int(value),
+                                             comment=comment))
+        elif isection.type_ == isType.TEXTPERLINE:
+            if len(values) > 1:
+                logger.warning('Multiple values found for TEXTPERLINE TYPE. Only first being used.')
+
+            # break up into separate sections and write down.
+            entered_text = values[0]
+            values = entered_text.split()
+            isvalues+=[
+                InfoSectionValue(info_section_id=isid,
+                                 entered_text=v, comment=comment) for v in values]
+        else:
+            if len(values) > 1:
+                logger.warning('Multiple values found for NOTES TYPE. Only first being used.')
+            entered_text = values[0]
             isvalues.append(InfoSectionValue(info_section_id=isection.id,
-                                             username=username,
-                                             paper_id=paperid,
                                              entered_text=entered_text,
-                                             entered_choice=entered_choice))
-    print(isvalues)
-    print(papertypevalues)
-    objects = isvalues + papertypevalues
-    ses.bulk_save_objects(objects)
+                                             comment=comment))
+
+    ses.add(comment)
+    for i in isvalues:
+        ses.add(i)
+    for i in papertypevalues:
+        ses.add(i)
+
     ses.commit()
 
 
@@ -87,18 +111,16 @@ def create_search_from_request(request):
     ptnames = request.form.getlist('ptname')
     ptradios = [request.form.get('ptradio' + str(i+1), False)=='on'
                 for i in range(len(ptnames))]
-    ptname_codes = [str(i) for i in range(len(ptnames))]
-    papertypes = [PaperType(name_=i, name_code=j, radio=k)
-                  for i, j,k in zip(ptnames, ptname_codes, ptradios)]
+    papertypes = [PaperType(name_=i, radio=j)
+                  for i, j in zip(ptnames, ptradios)]
 
     # Infosection information.
     infonames = request.form.getlist('infoname')
     infotexts = request.form.getlist('infotext')
     infotypes = [int(i) for i in request.form.getlist('infotype')]
-    is_codes = [str(i) for i in range(len(infonames))]
-    infosections = [InfoSection(name_=i, name_code=j, type_=k,
-                                position_=infonames.index(i), instructiontext=l)
-                    for i,j,k,l in zip(infonames, is_codes, infotypes, infotexts)]
+    infosections = [InfoSection(name_=i, type_=j,
+                                position_=infonames.index(i), instructiontext=k)
+                    for i,j,k in zip(infonames, infotypes, infotexts)]
 
     # Infosection sublist information.
     infosublistids = request.form.getlist('infosublistid')
@@ -114,7 +136,7 @@ def create_search_from_request(request):
            sublistentries = [
                infosublistentries[j] for j in range(len(infosublistids))
                if infosublistids[j] == i]
-           sublists = [InfoSublist(named=j, position_=sublistentries.index(j), entry_value=sublistentries.index(j))
+           sublists = [InfoSublist(named=j, position_=sublistentries.index(j))
                        for j in sublistentries]
            infosections[int(i)-1].sublists=sublists
 

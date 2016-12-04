@@ -1,3 +1,11 @@
+{% macro render_previouscomment(search, comment) %}
+<div>
+<h2> Created by {{comment.username}} at {{comment.datetime}}</h2>
+<div class="papertype">
+</div>
+
+{% endmacro %}
+
 {% macro render_commentform(search, paper=None, submitbutton=True) %}
 
 {% if current_user.is_authenticated %}
@@ -16,9 +24,9 @@
     {% for ptype in search.papertypes %}
     <label>
       {% if ptype.radio %}
-      <input type="radio" name="papertype" value="{{ptype.name_code}}">
+      <input type="radio" name="papertype" value="{{ptype.id}}">
       {% else %}
-      <input type="checkbox" name="papertype" value="{{ptype.name_code}}">
+      <input type="checkbox" name="papertype" value="{{ptype.id}}">
       {% endif %}
       {{ptype.name_}}
     </label><br/>
@@ -29,19 +37,28 @@
   <div class="ftype">
     <h3>{{infosection.name_}}</h3>
     {% if infosection.type_ == 3 %}
-    <textarea name="infosection_{{infosection.name_code}}"
+    <textarea name="infosection_{{infosection.id}}"
 	      rows="4"
 	      style="width:10em"
 	      placeholder="{{infosection.instructiontext}}"></textarea>
     {% elif infosection.type_ == 2 %}
-    <textarea name="infosection_{{infosection.name_code}}"
+    <textarea name="infosection_{{infosection.id}}"
 	      rows="7"
 	      style="width:18em"
 	      placeholder="{{infosection.instructiontext}}"></textarea>
+    {% else %}
+    <p class="instructiontext">{{infosection.instructiontext}}</p>
     {% endif %}
     {% for sl in infosection.sublists %}
-    <input type="checkbox" name="infosection_{{infosection.name_code}}" value="{{sl.entry_value}}" id="{{sl.entry_value}}">
-    <label for="{{sl.entry_value}}">{{sl.named}}</label><br/>
+    {% if infosection.type_ == 0 %}
+    <input type="radio" name="infosection_{{infosection.id}}"
+           value="{{sl.id}}" id="{{sl.id}}">
+    <label for="{{sl.id}}">{{sl.named}}</label><br/>
+    {% else %}
+    <input type="checkbox" name="infosection_{{infosection.id}}"
+           value="{{sl.id}}" id="{{sl.id}}">
+    <label for="{{sl.id}}">{{sl.named}}</label><br/>
+    {% endif %}
     {% endfor %}
   </div>
   {% endfor %}
@@ -138,7 +155,6 @@ Please login to submit paper updates.
       {% set arxiv = ident.identifier.split('arXiv')[1] %}
       <dt>arXiv</dt>
       <dd>
-	
 	<a href="http://arxiv.org/abs/{{arxiv[0:4]}}.{{arxiv[4:-1]}}">
 	  {{ident.identifier}}
 	</a>
@@ -183,9 +199,67 @@ Please login to submit paper updates.
     Last Updated: {{paper.updated}}
     {% endif %}
     </p>
-
   </div>
+  {% if authortable %}
+  <div id="authortable">
+    <h3> Table of authors and affiliations </h3>
+    <table>
+      <tr><th>Author</th><th>Affiliation</th></tr>
+      {% for author in paper.authors %}
+      <tr><td>{{author.author}}</td><td>{{author.affiliation}}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
 </div>
 {% endmacro %}
 
 
+{% macro render_previous_comments(comments) %}
+<h3> Summary of previous comments </h3>
+<p> There are {{comments|length}} previous comments, by {{ comments
+|unique_attr('username')| length}} users.</p>
+{% for comment in comments| sort(attribute='username') %}
+<div class="comment">
+<h2> {{comment.username}} at {{comment.datetime}} </h2>
+<table>
+  {% if comment.papertypevalues %}
+  <tr>
+      <th>Paper Type</th>
+      <td> <ul> {% for ptype in comment.papertypevalues %}
+                  <li>{{ptype.papertype.name_}}</li>
+                {% endfor %}
+           </ul>
+      </td>
+  </tr>
+  {% endif %}
+  {% for infosection in comment.infosectionvalues | unique_attr( 'infosection') |sort(attribute='position_') %}
+  {% set res = comment.infosectionvalues|selectattr('infosection', 'equalto', infosection) %}
+  <tr>
+       <th>{{infosection.name_}}</th>
+       <td>
+          {% if infosection.type_ |infosection_freeformtext %}
+             {% for r in res %}
+             <pre>{{r.entered_text}}</pre>
+             {% endfor %}
+          {% elif infosection.type_ |infosection_structtext %}
+             <ul>
+               {% for r in res %}
+               <li>{{r.entered_text}}</li>
+               {% endfor %}
+             </ul>
+          {% else %}
+             <ul>
+               {% for r in res %}
+               <li>{{r.infosublist.named}}</li>
+               {% endfor %}
+             </ul>
+          {% endif %}
+       </td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% endfor %}
+
+{% endmacro %}

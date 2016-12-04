@@ -19,7 +19,7 @@
        <td>{{paper.bibcode}}</td>
        <td><a href="{{url_for('auth.paper_info_page', searchid=search.id, paperid=paper.id)}}">{{paper.title}}</a></td>
        <td>{{ paper.authors[0].author }}</td>
-       <td>{{paper.papertypevalues | length}}</td>
+       <td>{{paper.comments | length}}</td>
        <td>{% if paper.refereed %}✓{% else %} ✗ {% endif %}</td>
      </tr>
    {% endfor %}

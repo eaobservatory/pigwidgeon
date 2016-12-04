@@ -37,8 +37,7 @@ class Paper(Base):
     properties = relationship("Property")
     authors = relationship("Author", order_by="Author.position_")
     searches = relationship("Search", secondary=ps_association_table)
-
-    papertypevalues = relationship("PaperTypeValue")
+    comments = relationship("Comment")
 
     def __repr__(self):
         return "<Paper(title={})>".format(self.title)
@@ -76,7 +75,7 @@ class Search(Base):
     startdate = Column(DateTime)
     timerange = Column(Integer)
     papertypes = relationship("PaperType", order_by="PaperType.position_")
-    papertypevalues = relationship("PaperTypeValue")
+    comments = relationship("Comment")
     infosections = relationship("InfoSection", order_by="InfoSection.position_")
     papers = relationship("Paper", secondary=ps_association_table)
 
@@ -89,7 +88,6 @@ class PaperType(Base):
                        nullable=False)
     position_ = Column(Integer)
     name_ = Column(UnicodeText)
-    name_code  = Column(Unicode(50))
     radio = Column(Boolean)
     search = relationship("Search")
 
@@ -97,16 +95,29 @@ class PaperType(Base):
 class PaperTypeValue(Base):
     __tablename__ = 'papertype_value'
     id = Column(Integer, primary_key=True, autoincrement=True)
+    comment_id = Column(Integer, ForeignKey('comments.id',
+                                onupdate='RESTRICT', ondelete='RESTRICT'),
+                        nullable=False)
+    papertype_id = Column(Integer, ForeignKey('paper_types.id',
+                                              onupdate='RESTRICT', ondelete='RESTRICT'),
+                          nullable=False)
+    comment = relationship("Comment")
+    papertype = relationship("PaperType")
+
+class Comment(Base):
+    __tablename__ = 'comments'
+    id = Column(Integer, primary_key=True, autoincrement=True)
     search_id = Column(Integer, ForeignKey('searches.id',
                                 onupdate='RESTRICT', ondelete='RESTRICT'),
                         nullable=False)
     paper_id = Column(Integer,
            ForeignKey('papers.id', onupdate='RESTRICT', ondelete='RESTRICT'))
     username = Column(Unicode(50), nullable=False)
-    value_ = Column(Integer, nullable=False)
     datetime = Column(DateTime, onupdate=func.now(), default=func.now())
     search = relationship("Search")
     paper = relationship("Paper")
+    papertypevalues = relationship("PaperTypeValue")
+    infosectionvalues = relationship("InfoSectionValue")
 
 
 
@@ -118,12 +129,14 @@ class InfoSection(Base):
                        nullable=False)
     position_ = Column(Integer)
     name_ = Column(Unicode(50))
-    name_code = Column(Integer)
     type_ = Column(Integer)
 #    /*0=radio, 1=check, 2=textarea, 3=textarea_newlines*/
+
     instructiontext =  Column(Unicode(50), default=None)
     search = relationship("Search")
     sublists = relationship("InfoSublist")
+
+
 
 class InfoSectionValue(Base):
     __tablename__ = 'info_section_values'
@@ -132,15 +145,18 @@ class InfoSectionValue(Base):
                                                onupdate='RESTRICT',
                                                ondelete='RESTRICT'),
                            nullable=False)
-    paper_id = Column(Integer, ForeignKey('papers.id', onupdate='RESTRICT',
+    comment_id = Column(Integer, ForeignKey('comments.id', onupdate='RESTRICT',
                                           ondelete='RESTRICT'),
-                      nullable=False)
-    username = Column(Unicode(50), nullable=False)
+                        nullable=False)
+    info_sublist_id = Column(Integer, ForeignKey('info_sublists.id',
+                                                 onupdate='RESTRICT',
+                                                 ondelete='RESTRICT'),
+                             nullable=True)
     entered_text = Column(UnicodeText)
-    entered_choice = Column(Integer)
-    datetime = Column(DateTime, nullable=False, default=func.now())
+    #entered_choice = Column(Integer)
+    comment = relationship("Comment")
     infosection = relationship("InfoSection")
-    paper = relationship("Paper")
+    infosublist = relationship("InfoSublist")
 
 
 class InfoSublist(Base):
@@ -152,7 +168,7 @@ class InfoSublist(Base):
                                                  nullable=False)
     named = Column(Unicode(50))
     position_ = Column(Integer)
-    entry_value = Column(Integer)
+    #entry_value = Column(Integer)
     section = relationship("InfoSection")
 
 class Keyword(Base):

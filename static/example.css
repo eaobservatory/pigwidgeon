@@ -198,7 +198,7 @@ div.ftype{
     display:inline-block;
     vertical-align:top;
     padding-right:1em;
-    max-width:10em;
+    max-width:30em;
 }
 
 
@@ -208,6 +208,11 @@ div.ftype{
 
 .ftype p{
     margin:0px;
+}
+
+.instructiontext{
+    font-style: italic;
+    padding-bottom: 0.5em;
 }
 
 label input[type=checkbox]{

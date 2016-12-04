@@ -16,10 +16,10 @@ import werkzeug.exceptions
 import werkzeug.routing
 
 
-from ..db import Paper, Search, PaperType, InfoSection, InfoSublist, Base
+from ..db import Paper, Search, PaperType, InfoSection, InfoSublist, Base, Comment
 from ..search import create_search_from_request, create_comment_from_request
 from ..paper import get_paper_info
-from ..util import get_db_session, create_session
+from ..util import get_db_session, create_session, isType
 
 
 
@@ -61,7 +61,6 @@ def get_current_user():
 def front_page():
     # Get all currently setup searches.
     searches = session.query(Search).all()
-
     return render_template('frontpage.html', searches=searches)
 
 @auth.route('/login', methods=['GET', 'POST'])
@@ -83,10 +82,10 @@ def login():
         login_user(form.user)
         flask.flash('Logged in successful')
         next = flask.request.args.get('next')
-        print('next is ')
-        print(next)
+
         if not is_safe_url(next):
             return flask.abort(400)
+
 
         return redirect(next or url_for('auth.front_page'))
 
@@ -103,8 +102,17 @@ def logout():
 def paper_info_page(paperid, searchid):
     session = create_session()
     search, paper = get_paper_info(paperid,searchid, session)
+    comments = session.query(Comment).filter_by(search_id=searchid, paper_id=paperid).all()
+    # if hasattr(current_user, 'username'):
+    #     currentusers_lastvalue = session.query(Comment).filter_by(search_id=searchid,
+    #                                                               paper_id=paperid,
+    #                                                               username=current_user.username
+    #                                                           ).order_by(Comment.datetime).last()
+    # else:
+    #     currentusers_lastvalue = None
 
-    return render_template('paperview_template.html', paper=paper, search=search)
+    return render_template('paperview_template.html', paper=paper, search=search, comments=comments)
+#                           current=currentusers_lastvalue)
 
 @auth.route('/search/<searchid>/paperlist')
 def search_paper_list(searchid):
@@ -129,9 +137,8 @@ def create_search():
 
 @auth.route('/search/<searchid>/paper/<paperid>/submit_comments', methods=['POST'])
 def submit_paper(paperid, searchid):
-    ses = session
-    comment = create_comment_from_request(request, ses)
-    print(comment)
+    comment = create_comment_from_request(request, session)
+
     raise werkzeug.exceptions.InternalServerError('paper comments submission not yet supported')
 
 @auth.route('/search/<searchid>')
@@ -169,10 +176,31 @@ def arxiv_filter(paper):
 
 @app.template_filter('classified_papers')
 def classifed_papers(search):
-    return set([i.paper_id for i in search.papertypevalues])
+    if search.comments:
+        return set([i.paper_id for i in search.comments])
+    else:
+        return []
 
 
 
+@app.template_filter('infosection_freeformtext')
+def infosection_freeformtext(infosectiontype):
+    """
+    Return TRUE if it matches isType.NOTES, else False
+    """
+    if infosectiontype == isType.NOTES:
+        return True
+    else:
+        return False
+@app.template_filter('infosection_structtext')
+def infosection_structtext(infosectiontype):
+    """
+    Return TRUE if it matches isType.TEXTPERLINE, else False
+    """
+    if infosectiontype == isType.TEXTPERLINE:
+        return True
+    else:
+        return False
 from urllib.parse import urlparse, urljoin
 from flask import request, url_for
 
