@@ -23,6 +23,7 @@ arguments = docopt(__doc__, help=True)
 if arguments['--debug'] is True:
     host = '127.0.0.1'
     debug = True
+    app.jinja_env.auto_reload=True
 else:
     host='0.0.0.0'
     debug = None
