@@ -181,7 +181,22 @@ def classifed_papers(search):
     else:
         return []
 
+@app.template_filter('unique_affils')
+def unique_affils(authorlist):
+    """
+    Return set of unique affilations from author list
+    """
+    affils = [a.affiliation for a in authorlist]
+    uniqueaffils = set(affils)
+    return uniqueaffils
 
+@app.template_filter('unique_attr')
+def unique_attr(listofobjs, attribute):
+    """
+    Return unique set of attribute values from list of objects.
+    """
+    attribs = [getattr(a, attribute) for a in listofobjs]
+    return set(attribs)
 
 @app.template_filter('infosection_freeformtext')
 def infosection_freeformtext(infosectiontype):
