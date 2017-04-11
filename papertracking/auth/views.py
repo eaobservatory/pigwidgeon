@@ -103,16 +103,17 @@ def paper_info_page(paperid, searchid):
     session = create_session()
     search, paper = get_paper_info(paperid,searchid, session)
     comments = session.query(Comment).filter_by(search_id=searchid, paper_id=paperid).all()
-    # if hasattr(current_user, 'username'):
-    #     currentusers_lastvalue = session.query(Comment).filter_by(search_id=searchid,
-    #                                                               paper_id=paperid,
-    #                                                               username=current_user.username
-    #                                                           ).order_by(Comment.datetime).last()
-    # else:
-    #     currentusers_lastvalue = None
+    if hasattr(current_user, 'username'):
+         currentusers_lastvalue = session.query(Comment).filter_by(search_id=searchid,
+                                    paper_id=paperid,
+                                    username=current_user.username
+         ).order_by(Comment.datetime.desc()).first()
+    else:
+        currentusers_lastvalue = None
 
-    return render_template('paperview_template.html', paper=paper, search=search, comments=comments)
-#                           current=currentusers_lastvalue)
+    return render_template('paperview_template.html', paper=paper,
+                           search=search, comments=comments,
+                           current=currentusers_lastvalue)
 
 @auth.route('/search/<searchid>/paperlist')
 def search_paper_list(searchid):
@@ -155,6 +156,9 @@ def search_setup_page():
     # Create Search
     return render_template('searchcreation.html')
 
+@app.template_filter('datetime')
+def datetime_filter(datetime):
+    return datetime.strftime('%Y-%m-%d %H:%M')
 @app.template_filter('pdflink')
 def pdflink_filter(bibcode):
     pdflink = "http://adsabs.harvard.edu/cgi-bin/nph-data_query?bibcode={}&link_type=EJOURNAL"

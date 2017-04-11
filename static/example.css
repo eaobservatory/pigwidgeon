@@ -181,7 +181,7 @@ div#form{
 
 
 
-div#form .form, div#comment{
+div#form .form, div.comment{
     display:inline-block;
     min-width:25em;
 }
