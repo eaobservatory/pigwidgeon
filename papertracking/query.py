@@ -89,8 +89,11 @@ def create_paper_objects(article, search):
     """
     pub_openaccess =  'PUB_OPENACCESS' in article.property
     refereed = 'REFEREED' in article.property
-    authorlist = list(itertools.zip_longest(article.author, article.aff))
-    authors = [Author(author=i, position_=article.author.index(i), affiliation=a) for i,a in authorlist]
+    if article.author:
+        authorlist = list(itertools.zip_longest(article.author, article.aff))
+        authors = [Author(author=i, position_=article.author.index(i), affiliation=a) for i,a in authorlist]
+    else:
+        authors = []
     ids=[Identifier(identifier=i) for i in article.identifier]
     if article.keyword:
         keywords = [Keyword(keyword=k) for k in article.keyword]
@@ -102,9 +105,21 @@ def create_paper_objects(article, search):
         doi=article.doi[0]
     else:
         doi=None
+
+    try:
+        pubdate = datetime.datetime.strptime(article.pubdate, '%Y-%m-00').date()
+    except ValueError:
+        try:
+            pubdate = datetime.datetime.strptime(article.pubdate, '%Y-00-00').date()
+        except ValueError:
+            pubdate = None
+            logger.warning('Could not find pubdate for article {}: format was {}'.format(
+                article.bibcode, article.pubdate))
+
     paper = Paper(bibcode = article.bibcode,
                   title = article.title[0],
                   abstract = article.abstract,
+                  pubdate = pubdate,
                   doi = doi,
                   pub_openaccess = pub_openaccess,
                   refereed = refereed,
@@ -148,6 +163,7 @@ def add_papers_to_db(papers, session, dryrun=False):
         session.commit()
         logger.info('Added {} new papers to database.'.format(len(new)))
         logger.info('Update {} existing papers in database.'.format(len(updated)))
+        logger.debug('Updated {}'.format('\n'.join(list(updated))))
     if dryrun:
         logger.info('DRYRUN: would have added {} new papers to database.'.format(len(new)))
         logger.info('DRYRUN: would have Updated {} existing papers in database.'.format(len(updated)))
@@ -163,52 +179,60 @@ def check_and_update(match, paper, session, dryrun=False):
     """
     # Check single values:
     # bibcode, title, abstract, doi, pub_opeanccess, refered.
-    updateset=set()
+    updated_papers=[]
 
-    logger.debug('Updating title, bibcode, abstract, pub etc for {}: {}'.format(match.bibcode, match.title))
+    #logger.debug('Updating title, bibcode, abstract, pub etc for {}: {}'.format(match.bibcode, match.title))
     for attrib in ['title', 'bibcode', 'abstract', 'pub_openaccess',
                    'refereed', 'doi', 'pubdate']:
         if getattr(match, attrib) != getattr(paper, attrib):
+            logger.debug('Update required for {} in {}'.format(attrib, match.bibcode))
+            logger.debug('old was {}; new is {}'.format(getattr(match, attrib), getattr(paper, attrib)))
             if not dryrun:
                 setattr(match, attrib, getattr(paper, attrib))
-            updateset.add(attrib)
+            updated_papers.append(match.bibcode)
 
     if (set([i.identifier for i in paper.identifiers]) !=
         set([i.identifier for i in match.identifiers])):
+        logger.debug('Update required for identifiers in {}'.format(match.bibcode))
         if not dryrun:
             for i in match.identifiers:
                 session.delete(i)
             match.identifiers = paper.identifiers.copy()
-        updateset.add('identifiers')
+        updated_papers.append(match.bibcode)
 
     if (set([i.keyword for i in paper.keywords]) !=
         set([i.keyword for i in match.keywords])):
+        logger.debug('Update required for keywords in {}'.format(match.bibcode))
         if not dryrun:
             for i in match.keywords:
                 session.delete(i)
             match.keywords = paper.keywords.copy()
 
-        updateset.add('keywords')
+        updated_papers.append(match.bibcode)
 
     if (set([i.property for i in paper.properties]) !=
         set([i.property for i in match.properties])):
+        logger.debug('Update required for properties in {}'.format(match.bibcode))
         if not dryrun:
             for i in match.properties:
                 session.delete(i)
             match.properties = paper.properties.copy()
 
-        updateset.add('properties')
+        updated_papers.append('properties')
+
     if (set([(i.position_,i.author,i.affiliation) for i in paper.authors]) !=
         set([(i.position_,i.author,i.affiliation) for i in match.authors])):
+        logger.debug('Update required for authors in {}'.format(match.bibcode))
         if not dryrun:
             for i in match.authors:
                 session.delete(i)
             match.authors = paper.authors.copy()
-        updateset.add('authors')
+        updated_papers.append('authors')
 
     # Searches: this should include all, not replace
     if (set([i.id for i in paper.searches]) !=
         set([i.id for i in match.searches])):
+        logger.debug('Update required for searches in {}'.format(match.bibcode))
         if not dryrun:
             match.searches += paper.searches
     if not dryrun:
@@ -217,7 +241,7 @@ def check_and_update(match, paper, session, dryrun=False):
         session.flush()
 
 
-    return updateset
+    return set(updated_papers)
     ""
 
 
