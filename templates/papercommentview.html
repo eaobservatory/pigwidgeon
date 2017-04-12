@@ -1,0 +1,16 @@
+{% extends "layout.html" %}
+{% from "macros.html" import render_commentform with context %}
+{% from "macros.html" import render_paper with context%}
+{% from "macros.html" import render_previous_comments with context %}
+{% from "macros.html" import render_commentquery_header %}
+{% block body %}
+{{ render_paper(paper) }}
+{{ render_commentquery_header(paper_position, searchquery, search, commentsearchinfo=commentsearchinfo) }}
+{{ render_previous_comments(comments, search) }}
+<div class="clear"></div>
+<div id="form">
+  {{ render_commentform(search, paper=paper, submitbutton=True, current=current) }}
+</div>
+
+
+{% endblock %}
