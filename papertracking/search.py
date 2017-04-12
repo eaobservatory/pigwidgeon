@@ -8,15 +8,14 @@ from .db import Search, PaperType, InfoSection, InfoSublist, PaperTypeValue, Inf
 from .util import isType
 import datetime
 
-def create_comment_from_request(request, ses):
+def create_comment_from_request(requestform, ses):
     """
     Create a comment for a paper from a POST request object.
 
     """
-    print(request.form)
-    searchid = int(request.form.get('searchid', None))
-    paperid = int(request.form.get('paperid', None))
-    username = request.form.get('username')
+    searchid = int(requestform.get('searchid', None))
+    paperid = int(requestform.get('paperid', 1))
+    username = requestform.get('username')
 
     comment = Comment(search_id=searchid, paper_id=paperid, username=username)
     search = ses.query(Search).filter(Search.id==int(searchid)).one()
@@ -28,7 +27,7 @@ def create_comment_from_request(request, ses):
     #            print(s.named, s.position_, s.entry_value)
 
     # First: papertypes
-    papertype_ids = request.form.getlist('papertype')
+    papertype_ids = requestform.getlist('papertype')
     papertypevalues = [PaperTypeValue(papertype_id=int(i), comment=comment)
                        for i in papertype_ids]
 
@@ -37,7 +36,7 @@ def create_comment_from_request(request, ses):
     isvalues = []
 
     # 1. get the keys form the comment dictionary.
-    infosections = [i for i in request.form.keys() if i.startswith('infosection_')]
+    infosections = [i for i in requestform.keys() if i.startswith('infosection_')]
 
     # For each one, get the infosecitonid, the sublistid, and the value
     infosectionid = [int(i.split('_')[1]) for i in infosections]
@@ -45,7 +44,7 @@ def create_comment_from_request(request, ses):
     # Now go through each InfoSection key, and create an InfoSectionValue object.
     for isid in infosectionid:
         isection = [s for s in search.infosections if int(s.id)==isid][0]
-        values = request.form.getlist('infosection_'+str(isid))
+        values = requestform.getlist('infosection_'+str(isid))
 
         if isection.type_  in [isType.RADIO, isType.CHECK]:
             for value in values:
@@ -69,14 +68,10 @@ def create_comment_from_request(request, ses):
             isvalues.append(InfoSectionValue(info_section_id=isection.id,
                                              entered_text=entered_text,
                                              comment=comment))
+    comment.infosectionvalues = isvalues
+    comment.papertypevalues = papertypevalues
+    return comment
 
-    ses.add(comment)
-    for i in isvalues:
-        ses.add(i)
-    for i in papertypevalues:
-        ses.add(i)
-
-    ses.commit()
 
 
 def create_search_from_request(request):

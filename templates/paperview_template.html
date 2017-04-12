@@ -2,13 +2,14 @@
 {% from "macros.html" import render_commentform with context %}
 {% from "macros.html" import render_paper with context%}
 {% from "macros.html" import render_previous_comments with context %}
+{% from "macros.html" import render_paperquery_header %}
 {% block body %}
 
 {{ render_paper(paper) }}
-
+{{ render_paperquery_header(paper_position, searchquery, search=search) }}
 <div id="form">
-  {{ render_commentform(search, paper=paper, submitbutton=True) }}
+  {{ render_commentform(search, paper=paper, submitbutton=True, current=current) }}
 </div>
 
-{{ render_previous_comments(comments) }}
+{{ render_previous_comments(comments, search) }}
 {% endblock %}

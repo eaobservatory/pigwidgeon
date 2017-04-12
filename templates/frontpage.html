@@ -10,7 +10,9 @@
        <th>query string</th>
        <th>Last performed</th>
        <th>Number Papers</th>
-       <th>Number classified (by anyone)</th>
+       <th>Number of Papers</br>commented on (by anyone)</th>
+       <th> Search papers</th>
+       <th>Search comments</th>
      </tr>
   {% for search in searches %}
      <tr>
@@ -18,7 +20,10 @@
        <td>{{search.ads_query}}</td>
        <td>{{search.last_performed}}</td>
        <td><a href="{{url_for('auth.search_paper_list', searchid=search.id)}}">{{search.papers|length}}</a></td>
-       <td>{{search | classified_papers | length}}</td></t5>
+       <td><a href="{{url_for('auth.search_paper_list_bycomment', searchid=search.id)}}">
+           {{search | classified_papers | length}}</a></td>
+       <td><a href="{{url_for('auth.search_paper_list', searchid=search.id)}}">Click here</a></td>
+       <td><a href="{{url_for('auth.search_paper_list_bycomment', searchid=search.id)}}">Click here</a></td>
      </tr>
    {% endfor %}
   </table>

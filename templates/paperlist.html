@@ -1,30 +1,54 @@
 {% extends "layout.html" %}
-
+{% from "macros.html" import render_comment_searchbox, render_paper_searchbox with context %}
 {% block body %}
 
-  <h2> Papers for search {{search.named}} </h2>
-  {% if search.papers %}
+  <h2>Look within papers found on ADS for: {{search.named}} </h2>
+  {{ render_paper_searchbox() }}
+  <div id="paperlist">
+  {% if papers %}
+
+  <p> Found {{papers|length}} matching papers.</p>
+  {% if papers|length > 500 %}
+  <p> NOTE: only showing first 500 papers </p>
+  {% set papers = papers[0:500] %}
+  {% endif %}
   <table>
      <tr>
        <th>ID</th>
        <th>Bibcode</th>
-       <th>Title</th>
+       <th class="papertitle">Title</th>
+       <th>Pub Date</th>
        <th>First Author</th>
-       <th>Classif. Count</th>
+       <th>Comment</br>Count</th>
+       {% if current_user.is_authenticated %}
+       <th>Your</br>comments</th>
+       {% endif %}
        <th>Refereed</th>
      </tr>
-  {% for paper in search.papers|sort(attribute='id') %}
+  {% for paper in papers|sort(attribute='id') %}
      <tr>
        <td>{{paper.id}}</td>
        <td>{{paper.bibcode}}</td>
-       <td><a href="{{url_for('auth.paper_info_page', searchid=search.id, paperid=paper.id)}}">{{paper.title}}</a></td>
+       <td class="papertitle"><a href="{{url_for('auth.paper_info_page', searchid=search.id, paperid=paper.id)}}">{{paper.title}}</a></td>
+       <td>{{paper.pubdate}}</td>
+       {% if paper.authors %}
        <td>{{ paper.authors[0].author }}</td>
+       {% else %}
+       <td></td>
+       {% endif %}
        <td>{{paper.comments | length}}</td>
+       {% if current_user.is_authenticated %}
+       <td> {{paper.comments|selectattr("username", "equalto", current_user.username)|list |length}}</td>
+       {% endif %}
        <td>{% if paper.refereed %}✓{% else %} ✗ {% endif %}</td>
      </tr>
    {% endfor %}
   </table>
+
+{% else %}
+<p> No papers were found matching these criteria</p>
 {% endif %}
+</div>
 
 
 

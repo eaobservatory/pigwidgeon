@@ -3,68 +3,37 @@
 <h2> Created by {{comment.username}} at {{comment.datetime}}</h2>
 <div class="papertype">
 </div>
-
 {% endmacro %}
 
-{% macro render_commentform(search, paper=None, submitbutton=True) %}
-
+{% macro render_commentform(search, paper=None, submitbutton=True, current=None) %}
 {% if current_user.is_authenticated %}
+{% if current %}
+<p>
+You have commented on this paper {{current|length}} times before. Your last comment was made on {{current[0].datetime|datetime}} and is pre-filled in below.
+</p>
+{% endif %}
 {% if submitbutton is not defined or submitbutton is none %}
-<form>
-  {% else %}
-  <form method="POST" action="{{url_for('auth.submit_paper', searchid=search.id, paperid=paper.id)}}">
+ <form>
+{% else %}
+ <form method="POST" action="{{url_for('auth.submit_paper', searchid=search.id, paperid=paper.id)}}">
     <input type="hidden" name="searchid" value="{{search.id}}"/>
     <input type="hidden" name="username" value="{{current_user.username}}"/>
     {% if paper is defined %}
-    <input type="hidden" name="paperid" value="{{paper.id}}"/>
+       <input type="hidden" name="paperid" value="{{paper.id}}"/>
     {% endif %}
-  {% endif %}
-  <div class="formmajor">
+{% endif %}
+  <div class="form">
     <h2>Please enter your comments</h2>
-    {% for ptype in search.papertypes %}
-    <label>
-      {% if ptype.radio %}
-      <input type="radio" name="papertype" value="{{ptype.id}}">
-      {% else %}
-      <input type="checkbox" name="papertype" value="{{ptype.id}}">
-      {% endif %}
-      {{ptype.name_}}
-    </label><br/>
-    {% endfor %}
-  </div>
+    {% if current and current|length > 0 %}
+    {{searchform_interior(search, current=current[0]) }}
+    {% else %}
+    {{searchform_interior(search, current=None) }}
+    {% endif %}
 
-  {% for infosection in search.infosections %}
-  <div class="ftype">
-    <h3>{{infosection.name_}}</h3>
-    {% if infosection.type_ == 3 %}
-    <textarea name="infosection_{{infosection.id}}"
-	      rows="4"
-	      style="width:10em"
-	      placeholder="{{infosection.instructiontext}}"></textarea>
-    {% elif infosection.type_ == 2 %}
-    <textarea name="infosection_{{infosection.id}}"
-	      rows="7"
-	      style="width:18em"
-	      placeholder="{{infosection.instructiontext}}"></textarea>
-    {% else %}
-    <p class="instructiontext">{{infosection.instructiontext}}</p>
-    {% endif %}
-    {% for sl in infosection.sublists %}
-    {% if infosection.type_ == 0 %}
-    <input type="radio" name="infosection_{{infosection.id}}"
-           value="{{sl.id}}" id="{{sl.id}}">
-    <label for="{{sl.id}}">{{sl.named}}</label><br/>
-    {% else %}
-    <input type="checkbox" name="infosection_{{infosection.id}}"
-           value="{{sl.id}}" id="{{sl.id}}">
-    <label for="{{sl.id}}">{{sl.named}}</label><br/>
-    {% endif %}
-    {% endfor %}
-  </div>
-  {% endfor %}
   {% if submitbutton %}
   <p><input type="submit" value="Submit"></p>
   {% endif %}
+  </div>
 </form>
 {% else %}
 
@@ -77,6 +46,65 @@ Please login to submit paper updates.
 
 {% endmacro %}
 
+{% macro searchform_interior(search, current=None) %}
+<div class="formmajor">
+  <h3> Paper types </h3>
+    {% for ptype in search.papertypes %}
+
+    <label>
+      {% if ptype.radio %}
+      <input type="radio" name="papertype" value="{{ptype.id}}"
+      {% if ptype.id in current.papertypevalues|unique_attr('papertype_id') %} checked="checked"{% endif %}
+             >
+      {% else %}
+      <input type="checkbox" name="papertype" value="{{ptype.id}}"
+ {% if ptype.id in current.papertypevalues|unique_attr('papertype_id') %} checked="checked"{% endif %}
+             >
+      {% endif %}
+      {{ptype.name_}}
+    </label><br/>
+    {% endfor %}
+  </div>
+
+  {% for infosection in search.infosections %}
+  {% set infos = current.infosectionvalues|selectattr('info_section_id', 'equalto', infosection.id)|list %}
+  <div class="ftype">
+    <h3>{{infosection.name_}}</h3>
+    {% if infosection.type_ == 3 %}
+    <textarea name="infosection_{{infosection.id}}"
+	      style="width:10em"
+    {% if infos %}
+	      rows="{{current.infosectionvalues|selectattr('info_section_id', 'equalto', infosection.id)|list|length}}"
+              >{{infos|map(attribute='entered_text')|join("\n")}}</textarea>
+    {% else %}
+             rows="4"
+              placeholder="{{infosection.instructiontext}}"></textarea>
+    {% endif %}
+    {% elif infosection.type_ == 2 %}
+    <textarea name="infosection_{{infosection.id}}"
+	      rows="7"
+	      style="width:18em"
+    {% if not infos %}
+	      placeholder="{{infosection.instructiontext}}">{% else %}>{% for i in infos %}{{i.entered_text}}{% endfor %}{% endif %}</textarea>
+    {% else %}
+    <p class="instructiontext">{{infosection.instructiontext}}</p>
+    {% endif %}
+    {% for sl in infosection.sublists %}
+
+      {% if infosection.type_ == 0 %}
+       <input type="radio" name="infosection_{{infosection.id}}"
+           value="{{sl.id}}" id="{{sl.id}}"
+           {% if sl.id in infos|map(attribute='info_sublist_id')|list %} checked="checked"{% endif %}>
+       <label for="{{sl.id}}">{{sl.named}}</label><br/>
+      {% else %}
+       <input type="checkbox" name="infosection_{{infosection.id}}"
+           value="{{sl.id}}" id="{{sl.id}}"           {% if sl.id in infos|map(attribute='info_sublist_id')|list %} checked="checked"{% endif %}>
+       <label for="{{sl.id}}">{{sl.named}}</label><br/>
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% endfor %}
+{% endmacro %}
 
 {% macro render_hidden_searchform(search) %}
 <form method="POST" action="{{url_for('auth.create_search')}}">
@@ -215,13 +243,83 @@ Please login to submit paper updates.
 {% endmacro %}
 
 
-{% macro render_previous_comments(comments) %}
+{% macro render_previous_comments(comments, search) %}
+{% set comments = comments|sort(attribute='datetime', reverse=True) %}
 <h3> Summary of previous comments </h3>
+{% if comments|length == 0 %}
+<p> There are no previous comments on this paper </p>
+{% else %}
+
 <p> There are {{comments|length}} previous comments, by {{ comments
-|unique_attr('username')| length}} users.</p>
-{% for comment in comments| sort(attribute='username') %}
+|unique_attr('username')| length}} users. The most recent comments by
+each user are shown below.</p>
 <div class="comment">
-<h2> {{comment.username}} at {{comment.datetime}} </h2>
+
+<table>
+  <tr>
+    <th></th>
+    {% for group in comments|groupby('username') %}
+    <th>{{group.grouper}}</th>
+    {% endfor %}
+  </tr>
+  <tr>
+    <th>Time</th>
+    {% for group in comments|groupby('username') %}
+    {% set comment = group.list[0] %}
+    <td>{{comment.datetime|datetime}}</td>
+    {% endfor %}
+  </tr>
+
+  <tr>
+    <th>Paper Types</th>
+    {% for group in comments|groupby('username') %}
+    {% set comment = group.list[0] %}
+    <td>
+      <ul>
+        {% for ptype in comment.papertypevalues %}
+        <li>{{ptype.papertype.name_}}</li>
+        {% endfor %}
+      </ul>
+    </td>
+    {% endfor %}
+  </tr>
+  {% for infosection in search.infosections %}
+  <tr>
+    <th>{{infosection.name_}}</th>
+    {% for group in comments|groupby('username') %}
+    {% set comment = group.list[0] %}
+    {% set res = comment.infosectionvalues|selectattr('info_section_id', 'equalto', infosection.id) %}
+    <td>
+      {% if infosection.type_ |infosection_freeformtext %}
+        {% for r in res %}
+        <pre>{{r.entered_text}}</pre>
+        {% endfor %}
+      {% elif infosection.type_ |infosection_structtext %}
+        <ul>
+          {% for r in res %}
+          <li>{{r.entered_text}}</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <ul>
+          {% for r in res %}
+          <li>{{r.infosublist.named}}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </td>
+    {% endfor %}
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% endif %}
+
+{% endmacro %}
+
+{% macro render_comments_inidividually(comments) %}
+{% for comment in comments%}
+<h2>{{comment.username}} at ({{comment.datetime|datetime}}) </h2>
 <table>
   {% if comment.papertypevalues %}
   <tr>
@@ -262,4 +360,174 @@ Please login to submit paper updates.
 </div>
 {% endfor %}
 
+{% endmacro %}
+
+
+{% macro render_commentquery_header(paper_position, searchquery, search, commentsearchinfo=None) %}
+{% set nextid, previd, length, position = paper_position %}
+<div id="queryheader">
+{{ render_query_navigation(nextid, previd, length, position, 'auth.search_paper_list_bycomment', 'auth.paper_comments_info_page', search.id, searchquery)}}
+<p>
+Current looking at comments on search {{search.named}}, that match the constraints:
+</p>
+<div class="commentsearch">
+<table>
+  {% for header, values in commentsearchinfo.items() %}
+  <tr>
+      <th>{{header}}</th>
+      <td>
+        {% if values is string %}
+        <pre>{{values}}</pre>
+        {% else %}
+        <ul>{% for value in values %}<li>{{value}}</li>{% endfor %}</ul>
+        {% endif %}
+      </td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% endmacro %}
+
+{% macro render_query_navigation(nextid, previd, length, position, urlpathup, urlpathview, searchid, searchquery) %}
+{% if 'searchid' not in searchquery %}
+{% set urlup = url_for(urlpathup, searchid=searchid, **searchquery) %}
+{% else %}
+{% set urlup = url_for(urlpathup, **searchquery) %}
+{% endif %}
+<div class="navigation">
+    {% if previd %}
+    <span class="navitem"><a href="{{url_for(urlpathview, paperid=previd, searchid=searchid)}}"> Prev. Paper </a></span>
+    {% endif %}
+    <span class="navitem">
+       {% if position %}
+       Paper {{position}} of <a href="{{urlup}}">{{length}}</a>.
+       {% else %}
+       Paper not in search criteria. <a href="{{urlup}}">{{length}} papers remain matching search criteria.</a>
+       {% endif %}
+    </span>
+    {% if nextid %}
+    <span class="navitem"><a href="{{url_for(urlpathview, paperid=nextid, searchid=searchid)}}"> Next Paper</a></span>
+    {% endif %}
+</div>
+
+{% endmacro %}
+
+
+{% macro render_paperquery_header(paper_position, searchquery, search) %}
+{% set nextid, previd, length, position = paper_position %}
+<div id="queryheader">
+{{ render_query_navigation(nextid, previd, length, position, 'auth.search_paper_list', 'auth.paper_info_page',
+search.id, searchquery)}}
+<div>
+  Currently looking within search {{search.named}} with following criteria:
+  <p>
+    {% if searchquery['startdate'] and searchquery['enddate'] %}
+     Pub. date between
+    {{searchquery['startdate'] if searchquery['startdate']|string else searchquery['startdate'].strftime('%Y-%m')}}
+    and
+    {{searchquery['enddate'] if searchquery['enddate']|string else searchquery['enddate'].strftime('%Y-%m')}}
+    {% elif searchquery['startdate'] %}
+    Pub. date after
+    {{searchquery['startdate'] if searchquery['startdate']|string else searchquery['startdate'].strftime('%Y-%m')}}
+    {% elif  searchquery['enddate'] %}
+    Pub. date before
+    {{searchquery['enddate'] if searchquery['enddate']|string else searchquery['enddate'].strftime('%Y-%m')}}
+    {% endif %}
+
+    {% if searchquery['refereed'] == true%}
+      Refereed papers
+    {% elif searchquery['refereed'] == false %}
+     Non-refereed papers
+    {% endif %}
+
+    {% if searchquery['ident'] %}
+    Papers with identifier (bibcode/arXiv) matching {{searchquery['ident']}}.
+    {% endif %}
+
+    {% if searchquery['already_classified'] == true %}
+      Papers already commented on
+        {% if searchquery['by_user'] is string%}
+          by username {{searchquery['by_user']}}.
+        {% else %}
+          by anyone.
+        {% endif %}
+    {% elif searchquery['already_classified'] == false %}
+      Papers not commented on
+        {% if searchquery['by_user'] is string %}
+          by username {{searchquery['by_user']}}.
+        {% else %}
+          by anyone.
+        {% endif %}
+    {% endif %}
+  </p>
+</div>
+</div>
+
+{% endmacro %}
+
+{% macro render_paper_searchbox_interior() %}
+<label for="refereed">Refereed:</label>
+<select name="refereed">
+  <option value=""{{' selected="selected"' | safe if querykwargs['refereed'] is none}}>n/a</option>
+  <option value="true"{{' selected="selected"' | safe if querykwargs['refereed']=='true'}}>Yes</option>
+  <option value="false"{{' selected="selected"' | safe if querykwargs['refereed']=='false'}}>No</option>
+</select>
+
+<label for="startdate">Date range:</label>
+<input type="text" name="startdate"
+       value="{{querykwargs['startdate'] |safe if querykwargs['startdate'] is not none }}"
+       placeholder="YYYY-MM">
+to
+<input type="text" name="enddate"
+       value="{{querykwargs['enddate'] |safe if querykwargs['enddate'] is not none }}"
+       placeholder="YYYY-MM">
+<label for="ident">Identifier:</label>
+<input type="text" name="ident"
+       value="{{querykwargs['ident'] | safe if querykwargs['ident'] is not none }}"
+       placeholder="Bibcode/arxiv or substring">
+<label for="done">Comments:<label>
+<select name="done">
+  <option value="" {{' selected="selected"' | safe if querykwargs['already_classified'] is defined}}>n/a</option>
+  <option value="true" {{' selected="selected"' | safe if querykwargs['already_classified']== 'true'}}>Commented on</option>
+  <option value="false" {{' selected="selected"' | safe if querykwargs['already_classified']== 'false'}}>Not commented on</option>
+</select>
+by:
+<input type="text" name="username" value='{{querykwargs["username"] | safe if querykwargs['username'] is not none}}' placeholder="username">
+{% endmacro %}
+
+
+{% macro render_paper_searchbox() %}
+<div class="papersearch">
+<p>Filtering using the following criteria:</p>
+<form class="papersearch">
+{{render_paper_searchbox_interior() }}
+<input type="submit" value="filter">
+
+</form>
+</div>
+{% endmacro %}
+
+{% macro render_comment_searchbox(search, paperqueries=True) %}
+<div class="commentsearch">
+<p>Filtering comments using the following criteria:</p>
+<form>
+<select name="usernametype">
+ {# <option value=""{{' selected="select"' |safe if commentkwargs.get('usernametype',None) is none}}>All comments </option> #}
+  <option value="perUser" {{' selected="select"' |safe if commentkwargs['usernametype']== 'perUser'}}>
+    Most recent per user
+  </option>
+  <option value="overall" {{' selected="select"' |safe if commentkwargs['usernametype']=='overall'}}>
+    Most recent overall
+  </option>
+</select>
+<br/>
+
+{{searchform_interior(search, current=commentfake)}}
+<br/>
+<h2>Also filter by paper attributes:</h2>
+{{render_paper_searchbox_interior()}}
+<br/>
+<input type="submit" value="filter">
+</form>
+</div>
 {% endmacro %}

@@ -1,23 +1,6 @@
+{% extends "layout.html" %}
 {% from 'macros.html' import render_commentform, render_hidden_searchform with context%}
-<!DOCTYPE HTML>
-<html lang="en">
-    <head><title>Paper Monitoring: {{title}}</title>
-	<meta charset="UTF-8">
-	<link rel="stylesheet" href="/static/layout.css" type="text/css" />
-	<link rel="stylesheet" href="/static/style.css" type="text/css" />
-	<link rel="stylesheet" href="/static/nonprint.css" media="not print" type="text/css" />
-	<link rel="stylesheet" href="/static/example.css" type="text/css" media="not print"/>
-    </head>
-
-    <body>
-	<ul id="navbar">
-	    <li><a href="/">All Searches</a></li>
-	    <li> {{ search_name }}</li>
-	    <li> <a href="/">new</a></li>
-	    <li> <a href="/">unchecked</a></li>
-	    <li> <a href="/">checked</a></li>
-	</ul>
-
+{% block body %}
 	<div id="paperinfo">
 	  {% if preview == true %}
 	  <h2>Your search is not yet created. The parameters you have selected are:</h2>
@@ -41,7 +24,6 @@
 	  </form>
 	</div>
 	<div id="form">
-	  {{ render_commentform(search, paper=False, submitbutton=None) }}
+	  {{ render_commentform(search, paper=False, submitbutton=None, current=None) }}
 	</div>
-    </body>
-</html>
+{% endblock %}
