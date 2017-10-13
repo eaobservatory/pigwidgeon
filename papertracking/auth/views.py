@@ -19,7 +19,7 @@ from werkzeug import MultiDict
 import datetime
 
 from ..db import Paper, Search, PaperType, InfoSection, InfoSublist, \
-    Base, Comment, InfoSectionValue, Identifier
+    Base, Comment, InfoSectionValue, Identifier, PaperTypeValue
 from ..search import create_search_from_request, create_comment_from_request
 from ..paper import get_paper_info
 from ..util import get_db_session, create_session, isType
@@ -132,6 +132,8 @@ def logout():
 @auth.route('/search/<searchid>/paper-comments/<paperid>')
 def paper_comments_info_page(paperid, searchid):
     search, paper = get_paper_info(paperid,searchid, dbsession)
+
+    # Get all comments on a specific paper.
     comments = dbsession.query(Comment).filter_by(search_id=searchid, paper_id=paperid).all()
 
     if hasattr(current_user, 'username'):
@@ -216,12 +218,15 @@ def paper_info_page(paperid, searchid):
                            current=currentusers, paper_position=paper_position, searchquery = searchquery)
 
 
-def create_papersearch_query(dbsession, searchid, startdate=None,
+def create_papersearch_query(dbsession, searchid, initialquery=None, startdate=None,
                              enddate=None, refereed=None,
                              done=None, username=None, ident=None):
 
     from sqlalchemy import distinct
-    query = dbsession.query(Paper).filter(Search.id==int(searchid))
+    if not initialquery:
+        query = dbsession.query(Paper).filter(Search.id==int(searchid))
+    else:
+        query=initialquery
     day = datetime.timedelta(days=1)
 
     if ident:
@@ -343,9 +348,9 @@ def create_comment_search(dbsession, searchid, searchargs, paperargs=None):
 
     # Ensure you filter by paper values too.
     if paperargs:
-        paperquery = create_papersearch_query(dbsession, searchid, **paperargs)
-        print(len(paperquery.all()))
-        commentquery = commentquery.filter(Comment.paper_id.in_([i.id for i in paperquery.all()]))
+        commentquery = commentquery.join(Paper)
+        commentquery = create_papersearch_query(dbsession, searchid, initialquery = commentquery, **paperargs)
+
 
     # Ensure you only get most recent, or most recent by user for
     if usernametype == 'overall':
