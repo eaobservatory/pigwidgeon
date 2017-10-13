@@ -13,16 +13,21 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 
 
-def update_search(searchid, session, dryrun=False):
+def update_search(searchid, session, dryrun=False, startdate=None, enddate=None):
     search = session.query(Search).filter(Search.id==searchid).one()
-    #datefrom:
-    if search.last_performed is None:
-        datefrom=search.startdate
+
+    if startdate:
+        datefrom = startdate
     else:
-        # Roughly 3 months?
-        delta = datetime.timedelta(days=31*search.timerange)
-        datefrom = search.last_performed - delta
-    adsresults = get_ads_results(search.ads_query, datefrom=datefrom, dateto=None)
+
+        if search.last_performed is None:
+            datefrom=search.startdate
+        else:
+            # Roughly 3 months?
+            delta = datetime.timedelta(days=31*search.timerange)
+            datefrom = search.last_performed - delta
+
+    adsresults = get_ads_results(search.ads_query, datefrom=datefrom, dateto=enddate)
     lastperformed = datetime.datetime.now()
     papers = [create_paper_objects(article, search) for article in adsresults]
     add_papers_to_db(papers, session, dryrun=dryrun)
