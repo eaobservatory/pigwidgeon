@@ -244,7 +244,7 @@ Please login to submit paper updates.
 
 
 {% macro render_previous_comments(comments, search) %}
-{% set comments = comments|sort(attribute='datetime', reverse=True) %}
+{% set comments = comments|sort(attribute='id', reverse=True) %}
 <h3> Summary of previous comments </h3>
 {% if comments|length == 0 %}
 <p> There are no previous comments on this paper </p>
