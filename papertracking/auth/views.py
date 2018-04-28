@@ -24,7 +24,8 @@ from ..search import create_search_from_request, create_comment_from_request
 from ..paper import get_paper_info
 from ..util import get_db_session, create_session, isType
 
-
+import numpy as np
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
 from flask import request, render_template, render_template_string, flash, redirect, \
     url_for, Blueprint, g
@@ -404,6 +405,84 @@ def search_paper_list_bycomment(searchid):
                            search=search, papers=papers, comments=comments, commentkwargs=searchargs,
                            querykwargs=querykwargs)
 
+from ..summary_view import create_summary_by_papertype, create_summary_table_plots
+@auth.route('/<searchid>/summarise_comments', methods=['GET', 'POST'])
+def summarise_comments(searchid):
+    dosearch = request.args.get('dosearch', 0, type=int)
+    startdate = request.args.get('startdate',None)
+    enddate  = request.args.get('enddate', None)
+    refereed = request.args.get('refereed', None)
+    username = request.args.get('username', None)
+    ignored_papertype_ids = request.args.getlist('papertypes', type=int)
+    ignored_infosection_ids = request.args.getlist('infosections', type=int)
+    session = create_session()
+
+    if refereed:
+        if refereed.lower() == "true":
+            refereed = True
+        elif refereed.lower() == "false":
+            refereed = False
+        elif refereed.lower() == "either":
+            refereed = None
+        else:
+            refereed = None
+    querykwargs = {'startdate':startdate,
+                   'enddate':enddate,
+                   'refereed': refereed,
+                   'username':username,
+                   'ignored_papertype_ids': ignored_papertype_ids,
+                   'ignored_infosection_ids': ignored_infosection_ids,
+    }
+
+
+    search = session.query(Search).filter(Search.id==searchid).one()
+    if dosearch:
+        if len(querykwargs['ignored_papertype_ids']) > 0:
+            papertypes_to_query = search.papertypes
+            papertypes_to_query = [p.id for p in papertypes_to_query
+                                   if p.id not in querykwargs['ignored_papertype_ids']]
+        else:
+            papertypes_to_query = None
+
+        print('paper types to query are', papertypes_to_query)
+
+        if 'ignored_infosection_ids' in querykwargs:
+            print('ignoring infosections {}'.format(querykwargs['ignored_infosection_ids']))
+            infosections_to_query = search.infosections
+            infosections_to_query = [p.id for p in infosections_to_query
+                                   if p.id not in querykwargs['ignored_infosection_ids']]
+            print('infosecitons_to_query are: {}'.format(infosections_to_query))
+        else:
+            print('no infosections being ignored')
+            infosections_to_query = None
+        results, overallsummary, summarytables = create_summary_by_papertype(session,
+                                                                             searchid,
+                                                                             username=username,
+                                                                             infosections_to_query=infosections_to_query,
+                                                                             papertypes_to_query=papertypes_to_query,
+                                                                             paperarguments=querykwargs)
+        overallim, imagedict = create_summary_table_plots(results)
+        #fig = create_msb_image(msbs, utdate, (semstart, semend))
+        #canvas = FigureCanvas(fig)
+        #img = StringIO.StringIO()
+        #canvas.print_png(img)
+        #img.seek(0)
+        #im = send_file(img, mimetype='image/png')
+    else:
+        results = None
+        searchid = None
+        overallsummary = None
+        summarytables = None
+        overallim = None
+        imagedict = None
+
+
+    return render_template('comment_summary.html', search=search, querykwargs=querykwargs, results=results,
+                           searchid=searchid,
+                           overallsummary=overallsummary, summarytables=summarytables,
+                           overallim=overallim, imagedict = imagedict)
+
+
 
 @auth.route('/search/<searchid>/paperlist')
 def search_paper_list(searchid):
@@ -550,6 +629,15 @@ def infosection_structtext(infosectiontype):
 def make_list(variable):
     return list(variable)
 
+@app.template_filter('boolean_table')
+def boolean_table(cellvalue, false=''):
+    if isinstance(cellvalue, bool) or isinstance(cellvalue, np.bool_):
+        if bool(cellvalue) is True:
+            return '✓'
+        elif bool(cellvalue) is False:
+            return false
+    else:
+        return cellvalue
 
 
 from urllib.parse import urlparse, urljoin

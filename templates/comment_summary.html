@@ -1,0 +1,117 @@
+{% extends "layout.html" %}
+{% from "macros.html" import render_summarytable %}
+{% block scripts %}
+<style type="text/css">
+  {{extracss}}
+  tfoot input, thead input {
+  width: 100%;
+  padding: 3px;
+  box-sizing: border-box;
+  }
+</style>
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/jq-2.2.3/dt-1.10.12/b-1.2.2/b-colvis-1.2.2/b-html5-1.2.2/b-print-1.2.2/cr-1.3.2/fh-3.1.2/se-1.2.0/datatables.min.css"/>
+     <script type="text/javascript" src="https://cdn.datatables.net/v/dt/jq-2.2.3/dt-1.10.12/b-1.2.2/b-colvis-1.2.2/b-html5-1.2.2/b-print-1.2.2/cr-1.3.2/fh-3.1.2/se-1.2.0/datatables.min.js"></script>
+    <script type="text/javascript" src="/static/most.js"></script>
+
+</script>
+{% endblock %}
+
+{% block body %}
+
+<form>
+  <p>Analyse comments on search {{searchid}}. If a username is
+  selected, then only papers commented on by that user will be
+  selected. The latest comment will be used for the analysis.</p>
+  <input type="text" name="username" value='{{querykwargs["username"] if querykwargs["username"] is not none}}' placeholder="username">
+  Start Date<input type="text" name="startdate" value='{{querykwargs["startdate"] if querykwargs["startdate"] is not none}}' placeholder="YYYY-MM">
+  End Date<input type="text" name="enddate" value='{{querykwargs["enddate"] if querykwargs["enddate"] is not none}}' placeholder="YYYY-MM">
+  Paper status<select name="refereed" '>
+    <option value="True"{{' selected="selected"'| safe if querykwargs["refereed"]== true}} >Refereed</option>
+    <option value="False"{{' selected="selected"'| safe if querykwargs["refereed"]== false}}>Not refereed</option>
+    <option value="Either"{{' selected="selected"'| safe if querykwargs["refereed"] is none}}>Either</option>
+  </select>
+  </br>
+  Papertypes to ignore:</br>
+  {% for ptype in search.papertypes %}
+    <input type="checkbox" name="papertypes" value="{{ptype.id}}"{{' checked="checked"'|safe if ptype.id in  querykwargs["ignored_papertype_ids"]}}>{{ptype.name_}}<br>
+  {% endfor %}
+  Info sections to ignore:</br>
+  {% for infosection in search.infosections %}
+    <input type="checkbox" name="infosections" value="{{infosection.id}}"{{' checked="checked"'|safe if infosection.id in querykwargs["ignored_infosection_ids"]}}>{{infosection.name_}}<br/>
+    {% endfor %}
+    <input type="hidden" name="dosearch" value=1>
+  <input type="submit" value="filter">
+</form>
+
+{% if results != None %}
+  <h2> Overall breakdown of papers in this search </h2>
+  <p> Please remember that papers can be in multiple categories.</p>
+
+  {% if results['missing_papers'] | length > 0 %}
+
+  <p> {{ results['missing_papers']|length}} papers matching this query have not yet been analysed {% if querykwargs["username"] is not none %}  by {{querykwargs["username"]}}{% endif %}:</br>
+  {% for j in results['missing_papers']|sort(attribute='id') %}
+    • <a href="{{url_for('auth.paper_info_page', paperid=j.id, searchid=searchid)}}">{{j.title}}: {{j.id}}</a></br>
+  {% endfor %}
+  </p>
+  {% endif %}
+  <img src="data:img/png;base64,{{overallim}}"/>
+  <table>
+      <tr>
+        <th> </th>
+        <th>Count</th>
+        </tr>
+      {% for papertype in results |reject('equalto', 'matching_papers')|reject('equalto', 'commented_papers') |reject('equalto', 'missing_papers') %}
+      <tr>
+        <th>{{papertype}}</th>
+        <td>{{results[papertype]['matching_papers']|length}}</td>
+      </tr>
+      {% endfor %}
+  </table>
+
+  <div class="hideshow header" id="breakdown-{{id}}">
+    <h4>Table of overall classifications (click here to hide/show)</h4>
+  </div>
+  <div id="table-breakdown-{{id}}" style="display:none">
+    {% set table = overallsummary %}
+    {{render_summarytable(table, searchid, id='overallsummary')}}
+  </div>
+  {% for papertype in results | reject('equalto', 'matching_papers')|reject('equalto', 'commented_papers') |reject('equalto', 'missing_papers')%}
+
+    {% set matchingpapers = results[papertype]['matching_papers'] %}
+
+    {% if matchingpapers |length > 0 %}
+     <h2>{{papertype}}: {{ matchingpapers|length }} matching publications</h2>
+      {% for infosection in results[papertype] | reject('equalto', 'matching_papers') | reject('equalto', 'multiple_papertypes') %}
+      <h3>{{infosection}}</h3>
+     {% set id=papertype.replace(' ', '_')+'_'+infosection.replace(' ', '_')%}
+     <img src="data:img/png;base64,{{imagedict[papertype][infosection]}}"/>
+     <table>
+       <tr>
+         <th> </th>
+         <th>Count</th>
+       </tr>
+       {% for category in results[papertype][infosection]| reject('equalto', 'matching_papers')|reject('equalto', 'commented_papers') |reject('equalto', 'missing_papers')%}
+       <tr>
+         <th>{{category}}</th>
+         <td>{{results[papertype][infosection][category]|length}}</td>
+       </tr>
+       {% endfor %}
+     </table>
+
+     <div class="hideshow header" id="breakdown-{{id}}">
+     <h4>Table of papers categorized by {{infosection}} (click here to hide/show)</h4>
+     </div>
+     <div id="table-breakdown-{{id}}" style="display:none">
+        {% set table = summarytables[papertype][infosection] %}
+        {{render_summarytable(table, searchid, id=id)}}
+     </div>
+
+      {% endfor %}
+    {% endif %}
+  {% endfor %}
+
+{% endif %}
+
+
+{% endblock %}
