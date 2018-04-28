@@ -167,8 +167,9 @@ def add_papers_to_db(papers, session, dryrun=False):
     if not dryrun:
         session.commit()
         logger.info('Added {} new papers to database.'.format(len(new)))
+        logger.info('Added {}'.format('\n'.join(list(new))))
         logger.info('Update {} existing papers in database.'.format(len(updated)))
-        logger.debug('Updated {}'.format('\n'.join(list(updated))))
+        logger.info('Updated {}'.format('\n'.join(list(updated))))
     if dryrun:
         logger.info('DRYRUN: would have added {} new papers to database.'.format(len(new)))
         logger.info('DRYRUN: would have Updated {} existing papers in database.'.format(len(updated)))
@@ -257,12 +258,18 @@ def check_if_paper_in_db(paper, session):
         match = session.query(Paper).filter(Paper.bibcode==paper.bibcode).one()
     except sqlalchemy.orm.exc.NoResultFound:
         # Check all identifiers
-        try:
-            match = session.query(Paper).join(Identifier).filter(
-                Identifier.identifier.in_([i.identifier for i in paper.identifiers])
-            ).one()
-        except sqlalchemy.orm.exc.NoResultFound:
+        match = session.query(Paper).join(Identifier).filter(
+            Identifier.identifier.in_([i.identifier for i in paper.identifiers])
+            ).all()
+        if len(match) == 0:
             match = None
+        elif len(match) > 1:
+            logger.warning('Multiple papers found with same identifier! {}'.format(', '.join([i.bibcode for i in match])))
+            logger.warning('Using last paper result found: {} ({})'.format(match[0].bibcode, match[-1].title))
+            match = match[-1]
+        elif len(match) == 1:
+            match = match[0]
+
     # Add check for multiple results? Don't know if this ever can
     # happen?
     if match:
