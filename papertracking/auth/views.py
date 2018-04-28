@@ -211,8 +211,8 @@ def paper_info_page(paperid, searchid):
         paper_position = (nextid, previd, length, position)
         searchquery = session['paper_query']
     else:
-        paper_position = None
-        searchquery = None
+        paper_position = (None, None, None, None)
+        searchquery = {}
 
     return render_template('paperview_template.html', paper=paper,
                            search=search, comments=comments,
