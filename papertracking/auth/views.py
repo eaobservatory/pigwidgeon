@@ -375,6 +375,8 @@ def search_paper_list_bycomment(searchid):
         startdate = request.args.get('startdate',None)
         enddate  = request.args.get('enddate', None)
         refereed = request.args.get('refereed', None)
+
+
         username = request.args.get('username', None)
         ident = request.args.get('ident', None)
         querykwargs = dict(startdate=startdate,
@@ -399,7 +401,8 @@ def search_paper_list_bycomment(searchid):
     query = create_comment_search(dbsession, search.id, searchargs, paperargs=querykwargs)
     comments = query.order_by(Comment.paper_id).all()
     papers = list(set([i.paper for i in comments]))
-
+    print('Found {} papers'.format(len(papers)))
+    print(set([i.id for i in papers]))
 
     return render_template('paperlist_commentsearch.html', commentfake=commentfake,
                            search=search, papers=papers, comments=comments, commentkwargs=searchargs,
@@ -495,13 +498,15 @@ def search_paper_list(searchid):
     done = request.args.get('done', None)
     username = request.args.get('username', None)
     ident = request.args.get('ident', None)
-
+  
     querykwargs = dict(startdate=startdate,
                        enddate=enddate,
                        refereed=refereed,
                        done=done,
                        username=username,
-                       ident=ident)
+                       ident=ident,
+                       )
+
     print('query_kwargs are {}'.format(querykwargs))
     session['paper_query'] = querykwargs
 
@@ -511,7 +516,7 @@ def search_paper_list(searchid):
     print('Found {} papers.'.format(len(papers)))
 
     # Filter within
-    return render_template('paperlist.html', search=search, papers=papers, querykwargs = querykwargs)
+    return render_template('paperlist.html', search=search, papers=papers, querykwargs=querykwargs)
 
 @auth.route('/search/preview', methods=['POST'])
 def preview_search():
