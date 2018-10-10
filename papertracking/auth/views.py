@@ -148,7 +148,7 @@ def paper_comments_info_page(paperid, searchid):
         print('paper comments session comment_query', session['comment_query'])
         query = create_comment_search(dbsession, searchid, MultiDict(session['comment_query']))
         allcomments = query.order_by(Comment.paper_id).all()
-        papers = list(set([i.paper.id for i in allcomments]))
+        papers = list(set([i.paper.id for i in allcomments if i.paper is not None]))
         papers.sort()
         try:
             previd = [i for i in papers if i < int(paperid)][-1]
