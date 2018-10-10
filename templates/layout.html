@@ -19,6 +19,7 @@
 	    <li> {{ search.named }}: </li>
             <li> <a href="{{url_for('auth.search_paper_list', searchid=search.id)}}">Search papers</a></li>
             <li> <a href="{{url_for('auth.search_paper_list_bycomment', searchid=search.id)}}">Search comments</a></li>
+            <li> <a href="{{url_for('auth.summarise_comments', searchid=search.id)}}">Summarise comments</a></li>
             {% else %}
             <li></li><li></li><li></li>
             {% endif %}

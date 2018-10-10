@@ -13,6 +13,7 @@
        <th>Number of Papers</br>commented on (by anyone)</th>
        <th> Search papers</th>
        <th>Search comments</th>
+       <th>Summarise Comments</th>
      </tr>
   {% for search in searches %}
      <tr>
@@ -24,6 +25,7 @@
            {{search | classified_papers | length}}</a></td>
        <td><a href="{{url_for('auth.search_paper_list', searchid=search.id)}}">Click here</a></td>
        <td><a href="{{url_for('auth.search_paper_list_bycomment', searchid=search.id)}}">Click here</a></td>
+       <td><a href="{{url_for('auth.summarise_comments', searchid=search.id)}}"> Click here</a></td>
      </tr>
    {% endfor %}
   </table>

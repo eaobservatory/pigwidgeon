@@ -179,11 +179,19 @@ Please login to submit paper updates.
     {% endfor %}
     <dl class="inline">
       {% for ident in paper.identifiers if 'arXiv' in ident.identifier%}
+      <!-- arXiv:YYMM.ZZZZ, YYYYarXivYYMM.ZZZZV, YYYYarXivYYMMZZZZZL, want URL of form YYMM.ZZZZ(Z) -->
       {% if loop.index==1 %}
-      {% set arxiv = ident.identifier.split('arXiv')[1] %}
+        {% if 'arXiv:' in ident.identifier %}
+            {% set arxiv = ident.identifier.split('arXiv:')[1] %}
+        {% elif '.' in ident.identifier %}
+            {% set arxiv = ident.identifier.split('arXiv')[1][:-1] %}
+        {% else %}
+            {% set arxiv = ident.identifier.split('arXiv')[1] %}
+            {% set arxiv = arxiv[0:4] + '.' +arxiv[4:-1] %}
+        {% endif %}
       <dt>arXiv</dt>
       <dd>
-	<a href="http://arxiv.org/abs/{{arxiv[0:4]}}.{{arxiv[4:-1]}}">
+	<a href="http://arxiv.org/abs/{{arxiv}}">
 	  {{ident.identifier}}
 	</a>
       </dd>
@@ -292,7 +300,7 @@ each user are shown below.</p>
     <td>
       {% if infosection.type_ |infosection_freeformtext %}
         {% for r in res %}
-        <pre>{{r.entered_text}}</pre>
+        <p>{{r.entered_text}}</p>
         {% endfor %}
       {% elif infosection.type_ |infosection_structtext %}
         <ul>
@@ -530,4 +538,38 @@ by:
 <input type="submit" value="filter">
 </form>
 </div>
+{% endmacro %}
+
+
+{% macro render_summarytable(table, searchid, id=1) %}
+{% set columns = table.colnames | reject('equalto', 'id')|list %}
+ <table id="{{id}}" cellspacing="0" class="obstable">
+   <thead>
+     <tr>
+       {% for column in columns %}
+       <th class="rotate"><div><span>{{column}}</span></div></th>
+       {% endfor %}
+     </tr>
+    <tr id="filterrow">
+       {% for column in columns %}
+       <th>{{column}}</th>
+       {% endfor %}
+     </tr>
+   </thead>
+   <tbody>
+     {% for row in table %}
+     {% set id = row['id'] %}
+     <tr>
+       {% for col in columns %}
+       {% if col=='Bibcode' %}
+         <td><a href="{{url_for('auth.paper_info_page', paperid=id, searchid=searchid)}}">{{row[col]}}</a></td>
+       {% else %}
+         <td> {{row[col]|boolean_table}}</td>
+       {% endif %}
+       {% endfor %}
+     </tr>
+     {% endfor %}
+   </tbody>
+ </table>
+
 {% endmacro %}
