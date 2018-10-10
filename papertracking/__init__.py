@@ -30,8 +30,13 @@ app.config['LDAP_BIND_USER_DN'] = None
 
 # The Password to bind to LDAP with
 app.config['LDAP_BIND_USER_PASSWORD'] = None
+
+
+app.config['LDAP_GROUP_MEMBERS_ATTR'] = 'memberUid'
+app.config['LDAP_GROUP_OBJECT_FILTER'] =  '(objectclass=posixGroup)'
+
 app.secret_key = 'random key'
-#app.config['LDAP_PROVIDER_URL'] = 'ldap://10.100.1.1/'
+
 app.secret_key = 'random key'
 
 login_manager = LoginManager()
