@@ -76,17 +76,17 @@ div#completionsummary div{
     padding-right: 1ex;
 
 }
-h4{
-    font-family: Gill Sans, Verdana;
-    line-height: 14px;
-	text-transform: uppercase;
-	letter-spacing: 2px;
-	font-weight: bold;
-	text-align: center;
-	margin: 0px;
-	margin-top: 11px;
-	margin-bottom: 11px;
-}
+/* h4{ */
+/*     font-family: Gill Sans, Verdana; */
+/*     line-height: 14px; */
+/* 	text-transform: uppercase; */
+/* 	letter-spacing: 2px; */
+/* 	font-weight: bold; */
+/* 	text-align: center; */
+/* 	margin: 0px; */
+/* 	margin-top: 11px; */
+/* 	margin-bottom: 11px; */
+/* } */
 div#completionsummary p{
     margin: 0px;
     padding:1em;
@@ -268,3 +268,19 @@ td.papertitle, th.papertitle{
 div.clear {
     clear: both;
 }
+
+/*th.rotate {
+  height: 140px;
+  white-space: nowrap;
+}*/
+
+/*th.rotate > div {
+  transform: 
+    translate(25px, 51px)
+    rotate(315deg);
+  width: 30px;
+}*/
+/*th.rotate > div > span {
+  border-bottom: 1px solid #ccc;
+  padding: 5px 10px;
+}*/
