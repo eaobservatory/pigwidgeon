@@ -92,8 +92,12 @@ def create_paper_objects(article, search):
     """
     Turn ADS article object into DB Paper object.
     """
-    pub_openaccess =  'PUB_OPENACCESS' in article.property
-    refereed = 'REFEREED' in article.property
+    if hasattr(article, 'property') and  article.property is not None:
+        pub_openaccess =  'PUB_OPENACCESS' in article.property
+        refereed = 'REFEREED' in article.property
+    else:
+        pub_openaccess = None
+        refereed = None
     if article.author:
         authorlist = list(itertools.zip_longest(article.author, article.aff))
         authors = [Author(author=i, position_=article.author.index(i), affiliation=a) for i,a in authorlist]
@@ -215,16 +219,6 @@ def check_and_update(match, paper, session, dryrun=False):
             match.keywords = paper.keywords.copy()
 
         updated_papers.append(match.bibcode)
-
-    if (set([i.property for i in paper.properties]) !=
-        set([i.property for i in match.properties])):
-        logger.debug('Update required for properties in {}'.format(match.bibcode))
-        if not dryrun:
-            for i in match.properties:
-                session.delete(i)
-            match.properties = paper.properties.copy()
-
-        updated_papers.append('properties')
 
     if (set([(i.position_,i.author,i.affiliation) for i in paper.authors]) !=
         set([(i.position_,i.author,i.affiliation) for i in match.authors])):
