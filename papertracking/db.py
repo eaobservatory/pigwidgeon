@@ -3,12 +3,12 @@ from collections import namedtuple, OrderedDict
 import os
 import sys
 
-from sqlalchemy.orm import sessionmaker, relationship
-from sqlalchemy import create_engine, Column, ForeignKey, Unicode, UnicodeText, \
-    Integer, String, Table, Unicode, Boolean, DateTime, Date, func
+from sqlalchemy.orm import sessionmaker, relationship, column_property
+from sqlalchemy import Column, ForeignKey, Unicode, UnicodeText, \
+    Integer, String, Table, Unicode, Boolean, DateTime, Date, func, select, and_
 from sqlalchemy.ext.declarative import declarative_base
 
-engine = create_engine('sqlite:///mydatabase.db')
+#engine = create_engine('mysql+mysqldb://errol:Aesaico7bah8@omp1/pigwidgeon', echo=True)
 Base = declarative_base()
 
 
@@ -48,7 +48,7 @@ class Identifier(Base):
     id = Column('id', Integer, primary_key=True, autoincrement=True)
     paper_id = Column('paper_id', Integer,
            ForeignKey('papers.id', onupdate='RESTRICT', ondelete='RESTRICT'))
-    identifier = Column('identifier', Unicode(20), nullable=False)
+    identifier = Column('identifier', Unicode(100), nullable=False)
     paper = relationship("Paper")
 
 
@@ -58,7 +58,7 @@ class Author(Base):
     id = Column('id', Integer, primary_key=True, autoincrement=True)
     paper_id = Column('paper_id', Integer,
            ForeignKey('papers.id', onupdate='RESTRICT', ondelete='RESTRICT'))
-    author = Column('author', Unicode(20), nullable=False)
+    author = Column('author', Unicode(100), nullable=False)
     position_ = Column('position_', Integer, nullable=False)
     affiliation = Column(UnicodeText)
     paper = relationship("Paper")
