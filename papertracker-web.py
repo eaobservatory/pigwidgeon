@@ -1,6 +1,6 @@
 """
 Usage: papertracker-web.py [-h]
-       papertracker-web.py [-d] [--port=port]
+       papertracker-web.py [-d] [--port=port] [--host=host]
 
 Launch a web page for testing
 
@@ -8,7 +8,7 @@ Options:
   -h --help  Show this help.
   -d --debug    Run using flasks debug mode. Allows reloading of code.
   -p --port=port  Port to run on (defaul tis 5000)
-
+  --host=host Host to run on
 
 """
 
@@ -33,5 +33,7 @@ if arguments['--port']:
 else:
     port = 5000
 
+if arguments['--host']:
+    host = arguments['--host']
 
 app.run(host=host, debug=debug, port=port)
