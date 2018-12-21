@@ -1,5 +1,6 @@
 # Search for summarys of comments in database.
-from sqlalchemy import func
+from sqlalchemy import func, and_
+from sqlalchemy.orm import subqueryload
 import datetime
 from papertracking.db import Paper, Identifier, Author, Search, PaperType, PaperTypeValue, \
     Comment, InfoSection, InfoSectionValue, InfoSublist
@@ -7,16 +8,24 @@ from io import BytesIO
 from papertracking.util import create_session
 from collections import OrderedDict
 from astropy.table import Table, Column
+
 import logging
 from flask import send_file
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import numpy  as np
 import base64
-import copy
+
+
 logger = logging.getLogger(__name__)
 
-def create_summary_by_papertype(session, searchid, username=None, papertypes_to_query=None,
+
+
+import pandas as pd
+
+
+logger.setLevel('DEBUG')
+def create_summary_by_papertype(dbsession, searchid, username=None, papertypes_to_query=None,
                                 infosections_to_query=None, paperarguments=None):
     """
     Get a summary of papers classified by infosections, based on comments in the DB.
@@ -36,54 +45,62 @@ def create_summary_by_papertype(session, searchid, username=None, papertypes_to_
     returns dictionaries of results by name
     """
 
-    if not session:
-        session = create_session()
+    if not dbsession:
+        dbsession = create_session()
 
     # Get all papertypes that we care about
-    papertypes = session.query(PaperType).filter(Search.id==searchid).order_by(PaperType.position_).all()
+    papertypes = dbsession.query(PaperType).filter(Search.id==searchid).order_by(PaperType.position_).all()
     if papertypes_to_query:
         papertypes = [p for p in papertypes if p.id in papertypes_to_query]
-
     # ensure arguments are in correct format:
     if paperarguments:
         refereed = paperarguments.get('refereed', None)
-        print(refereed, type(refereed))
         day = datetime.timedelta(days=1)
         start = end = None
-        if 'startdate' in paperarguments:
+        startdate = paperarguments.get('startdate', None)
+        enddate = paperarguments.get('enddate', None)
+        if startdate and startdate != "":
             start = datetime.datetime.strptime(paperarguments['startdate'], '%Y-%m') - day
-        if 'enddate'  in paperarguments:
+        if enddate  and enddate != "":
             end = datetime.datetime.strptime(paperarguments['enddate'], '%Y-%m') + day
 
 
     # Get list of infosections, sorted by position_.
+    infosections = dbsession.query(InfoSection).options(subqueryload(InfoSection.sublists)).filter(InfoSection.search_id==searchid)
+
     if infosections_to_query:
-        infosections = session.query(InfoSection).filter(InfoSection.search_id==searchid).\
-                               filter(InfoSection.id.in_(infosections_to_query)).all()
-    else:
-        infosections = session.query(InfoSection).filter(InfoSection.search_id==searchid).all()
+        infosections = infosections.filter(InfoSection.id.in_(infosections_to_query))
+
+    infosections = infosections.all()
     infosections.sort(key = lambda x: x.position_)
 
     results = OrderedDict()
-    commentquery = session.query(Comment).filter(Search.id==int(searchid))
-    if username:
-        commentquery = commentquery.filter(Comment.username==username)
-        idlist = session.query(Comment.id, func.max(Comment.datetime)).filter(Comment.search_id==searchid).\
-                               filter(Comment.username==username).group_by(Comment.paper_id).all()
-        idlist = [i[0] for i in idlist]
 
-    else:
-        #raise NotImplementedError('No username not yet supported!')
-        #idlist = session.query(func.max(Comment.datetime)).group_by(Comment.paper_id, Comment.search_id)
-        idlist = session.query(Comment.id, func.max(Comment.datetime)).filter(Comment.search_id==searchid).\
-                                      group_by(Comment.paper_id).all()
-        idlist = [i[0] for i in idlist]
+    # Create a comment query, and enuser that infosectionvalues and papertypevalues are eagerly loaded.
+    commentquery = dbsession.query(Comment, Paper, Author.author).filter(Search.id==int(searchid))
+    commentquery = commentquery.join(Paper, Comment.paper_id==Paper.id)
+    commentquery = commentquery.join(Author, Comment.paper_id==Author.paper_id).filter(Author.position_==0)
+    commentquery = commentquery.group_by(Comment.id)
+    commentquery = commentquery.options(subqueryload(Comment.infosectionvalues)).options(
+        subqueryload(Comment.papertypevalues))
+
+    # Ensure that we have added in first author to avoid querying it
+
+    # Only match the most recent comment per paper, optionally only by a specific username.
+    recentcommentquery = dbsession.query(func.max(Comment.id).label('id')).\
+                             filter(Comment.search_id==searchid).\
+                             group_by(Comment.paper_id)
+    if username:
+        recentcommentquery = recentcommentquery.filter(Comment.username==username)
+    recentcommentquery = recentcommentquery.subquery('t')
+    commentquery = commentquery.filter(and_(Comment.id==recentcommentquery.c.id))
+
 
     # Do paper querys
     # Get matching set of papers whether commented on or not.
-    all_papers = session.query(Paper).filter(Paper.searches.any(Search.id==searchid))
+    all_papers = dbsession.query(Paper, Author.author).outerjoin(Author, Paper.id==Author.paper_id).filter(Author.position_==0).filter(Paper.searches.any(Search.id==searchid))
+    #all_papers = dbsession.query(Paper).filter(Paper.searches.any(Search.id==searchid))
     if paperarguments:
-        commentquery = commentquery.join(Paper)
         if refereed is not None:
             print("refereed is being checked", refereed, type(refereed))
             commentquery = commentquery.filter(Paper.refereed == refereed)
@@ -96,113 +113,98 @@ def create_summary_by_papertype(session, searchid, username=None, papertypes_to_
             all_papers = all_papers.filter(Paper.pubdate <= end)
 
     full_paper_set = all_papers.all()
+
     results['matching_papers'] = set(full_paper_set)
 
     # Ensure we are only getting the latest comment (possibly by that username).
     #commentquery = commentquery.filter(Comment.id.in_(idlist))
-    comments = commentquery.all()
-    comments = [c for c in comments if c.id in idlist and c.paper is not None]
-    commented_papers = set([c.paper for c in comments])
+    fullcomments = commentquery.all()
+    #comments = [c for c in comments if c.id in idlist and c.paper is not None]
+    commented_papers = set([c.Paper for c in fullcomments])
 
-    results['commented_papers'] = commented_papers
-
-    results['missing_papers'] = results['matching_papers'].difference(results['commented_papers'])
+    results['commented_papers'] = fullcomments
 
 
+    matching_comments_onlypapers = set([p.Paper for p in fullcomments])
+    missing_papers  = [p for p in full_paper_set if p.Paper not in matching_comments_onlypapers]
 
 
-    # Go through all results
-    for p in papertypes:
+    # Creating pandas stuff.
 
-        resdict = OrderedDict()
-        # find all comments for that.
-
-        paper_category_query = commentquery.filter(Comment.papertypevalues.any(PaperTypeValue.papertype_id==p.id))
-
-        # Get results
-        comments = paper_category_query.order_by(Comment.paper_id).all()
-        comments = [c for c in comments if c.id in idlist and c.paper is not None]
-
-        papers = list(set([i.paper for i in comments]))
-        if len(papers) != len(comments):
-            print('Warning: multiple comments being returned for a single paper! programming error!')
-
-            return papers, comments
-
-        resdict['matching_papers'] = set(papers)
-        papercount = len(resdict['matching_papers'])
-        print('{}: {} papers'.format(p.name_, papercount))
-
-        # Now get more information about each one.
-        # 1. find all papers that are have multiple paper types.
-        multiple_papertypes = [c for c in comments if len(c.papertypevalues) > 1]
-        multiple_papertypes = list(set([c.paper for c in multiple_papertypes]))
-        if len(multiple_papertypes) > 0:
-            logger.info('\t{} papers have been assigned multiple papertypes: ids are {}'.format(
-                len(multiple_papertypes), ', '.join([str(p.id) for p in multiple_papertypes])))
-            resdict['multiple_papertypes'] = multiple_papertypes
-
-
-        # Go through each InfoSection
-        if papercount > 0:
-            for i in infosections:
-                print('\t{}'.format(i.name_))
-                resdict[i.name_] = OrderedDict()
-                if i.type_ == 1:
-                    logger.info('\t{}'.format(i.name_))
-                    possible_values = i.sublists
-
-                    for j in possible_values:
-                        # j is an InfoSublist
-                        matches = [d for c in comments for d in c.infosectionvalues if d.info_sublist_id == j.id]
-                        if len(matches) > 0:
-                            #logger.info('\t\t{}: {}'.format(j.named, len(matches)))
-                            print('\t\t{}: {}'.format(j.named, len(matches)))
-                        resdict[i.name_][j.named] = [m.comment.paper for m in matches]
-                if i.type_ == 3:
-                    # If its a short list, then keep track of all entries.
-                    matches = [d for c in comments for d in c.infosectionvalues if d.infosection.id == i.id]
-
-                    # Turn into a flattened unique list.
-                    texts = set([flatcode.strip() for m in matches
-                                                  for flatcode in m.entered_text.split('\n')
-                                                  if m.entered_text])
-
-                    # Find sets of papers for each entry
+    header = ['commentid', 'paper_id', 'username', 'firstauthor', 'title', 'pubdate', 'refereed', 'papertype', 'papertypeid', 'sectionnamed', 'sectionid', 'entered_text', 'sublist_id','sublist_name']
+    results = []
+    for c in fullcomments:
+        paperinfo = [c.Comment.id, c.Comment.paper_id, c.Comment.username, c.author, c.Paper.title, c.Paper.pubdate, c.Paper.refereed]
+        for p in c.Comment.papertypevalues:
+            row = paperinfo + [p.papertype.name_, p.papertype_id]
+            for i in c.Comment.infosectionvalues:
+                if i.infosection.type_ == 3 and i.entered_text is not None:
+                    texts = i.entered_text.split('\n')
                     for t in texts:
-                        matching_papers = set([c.paper for c in comments
-                                                      for isvalue in c.infosectionvalues if isvalue.entered_text
-                                                      for entry in isvalue.entered_text.split('\n')
-                                                      if t in entry])
-                        resdict[i.name_][t] = matching_papers
-                        if len(matching_papers) > 0:
-                            print('\t\t{}: {}'.format(t, len(matching_papers)))
-                if i.type_ == 2:
-                    # For free form notes sections, no analysis possible.
-                    resdict.pop(i.name_)
-                    pass
+                        if t is not None and t != '':
+                            results += [row + [i.infosection.name_, i.infosection.id, t, getattr(i.infosublist, 'id', None), getattr(i.infosublist, 'named', None)]]
+                else:
+                    results += [row + [i.infosection.name_, i.infosection.id, i.entered_text, getattr(i.infosublist, 'id', None), getattr(i.infosublist, 'named', None)]]
 
 
 
-        results[p.name_] = resdict
+    res = pd.DataFrame(data=results, columns=header)
+    res['pubdate'] = pd.to_datetime(res['pubdate'])
+
+    papertypecat = pd.Categorical([i.name_ for i in papertypes], ordered=True)
+
+    generalcolumns = ['commentid','paper_id', 'username', 'firstauthor', 'title', 'pubdate', 'refereed']
+    pivotgeneralcolumns = ['paper_id','firstauthor','title', 'refereed', 'pubdate', 'username']
+    papertypesub = res[generalcolumns + ['papertype']].drop_duplicates()
+    overallsummary = pd.DataFrame(papertypesub['papertype'].value_counts().reindex(papertypecat, fill_value=0).rename('counts'))
+
+    overallsummarytable = papertypesub.pivot_table(index=pivotgeneralcolumns,
+                                            values=['commentid'],
+                                            aggfunc='count',
+                                            columns=['papertype'],
+                                            fill_value=0)
+
+    ptypedict = OrderedDict()
+
+    # Go through each papertype.
+    for ptype in papertypecat:
+        infosectdict = OrderedDict()
+        for infosec in infosections:
+            if infosec.type_ != 2:
+                name = infosec.name_
+                subtable = res[(res['sectionnamed']==name)&(res['papertype']==ptype)]
+                if len(subtable) > 0:
+                    if infosec.type_ == 3:
+                        subtable = subtable[generalcolumns + ['sectionnamed', 'entered_text']].drop_duplicates()
+                        summary = subtable['entered_text'].value_counts()
+                        summarytable = subtable.pivot_table(index=pivotgeneralcolumns,
+                                                            values=['commentid'],
+                                                            aggfunc='count',
+                                                            columns=['entered_text'],
+                                                            fill_value=0)
+
+                    else:
+                        sublist = sorted(infosec.sublists, key=lambda x: x.position_)
+                        cat = pd.Categorical([i.named for i in sublist], ordered=True)
+                        subtable = subtable[generalcolumns + ['sectionnamed', 'sublist_name']].drop_duplicates()
+
+                        summary = subtable['sublist_name'].value_counts().reindex(cat, fill_value=0)
+                        summarytable = subtable.pivot_table(index=pivotgeneralcolumns,
+                                                            values=['commentid'],
+                                                            aggfunc='count',
+                                                            columns=['sublist_name'],
+                                                            fill_value=0)
+
+                    infosectdict[name] = (pd.DataFrame(summary.rename('counts')), summarytable)
+                else:
+                    infosectdict[name] = (None, None)
+        ptypedict[ptype] = infosectdict
 
 
-    # Now create summary tables
-    overallsummary = create_summary_table_dict(results, categories=[p.name_ for p in papertypes])
-    summarytables_specific = dict()
-    for p in papertypes:
-        if p.name_ in results:
-            papers = results[p.name_]['matching_papers']
-            summarytables_specific[p.name_] = {}
-            for i in infosections:
-                if i.name_ in results[p.name_]:
-                    table = create_summary_table_dict(results[p.name_][i.name_], papers=papers)
-                    summarytables_specific[p.name_][i.name_] = table
-
-    return results, overallsummary, summarytables_specific
+    return missing_papers, res, overallsummary,overallsummarytable, ptypedict
 
 
-def create_summary_table_dict(results, papers=None, categories=None):
+def create_summary_table_dict(results, matches=None, categories=None):
     """
     Create an astropy.table object summarising information.
 
@@ -210,16 +212,16 @@ def create_summary_table_dict(results, papers=None, categories=None):
     """
 
 
-    if not papers:
-        papers = list(results['matching_papers'])
+    if not matches:
+        matches = list(results['matching_papers'])
 
     # Authors is occasionally an empty string, so trap that case
-    rows = [[paper.bibcode,
-             (paper.authors[0:] + ['None'])[0],
-             paper.pubdate,
-             paper.title,
-             paper.refereed,
-             paper.id] for paper in papers]
+    rows = [[m.Paper.bibcode,
+             m.author,
+             m.Paper.pubdate,
+             m.Paper.title,
+             m.Paper.refereed,
+             m.Paper.id] for m in matches]
     summarytable = Table(rows=rows,
                          names=['Bibcode', 'First Author', 'Pub. Date', 'Title', 'Refereed?', 'id'])
 
@@ -232,18 +234,52 @@ def create_summary_table_dict(results, papers=None, categories=None):
                 matching_papers = results[category]['matching_papers']
             else:
                 matching_papers = results[category]
-            matches = [True if p in matching_papers else False  for p in papers]
-            col = Column(data=matches, name=category, dtype=bool)
+            finalmatches = [True if p in matching_papers else False  for p in matches]
+            col = Column(data=finalmatches, name=category, dtype=bool)
             summarytable.add_column(col)
     return summarytable
+
+def create_mpl_barchart(series, title=False):
+    fig = Figure()
+    fig.patch.set_visible(False)
+    ax = fig.add_subplot(111)
+    labels = series.index.tolist()
+    ax.bar(np.arange(len(labels)), list(series.counts))
+    ax.set_xticks(np.arange(len(labels)))
+    ax.set_xticklabels(labels, fontdict={'rotation':45.0, 'ha': 'right'})
+    if title:
+        ax.set_title(title)
+    fig.tight_layout()
+    canvas = FigureCanvas(fig)
+    img = BytesIO()
+    canvas.print_png(img)
+    img.seek(0)
+    image = base64.b64encode(img.getvalue()).decode()
+    return image
+
+
+
+def create_summary_plots_mpl(overallsummary, ptypedict):
+    keys = ['overall']
+    figs = []
+    figs.append(create_mpl_barchart(overallsummary))
+
+    for ptype, dicts in ptypedict.items():
+        for isection, (summary, table) in dicts.items():
+            if summary is not None and len(summary) > 0:
+                title = '{}---{}'.format(ptype, isection)
+                figs.append(create_mpl_barchart(summary, title=title))
+                keys.append(title)
+
+    return dict(zip(keys, figs))
+
 
 
 def create_summary_table_plots(results):
 
 
-#    results.pop('commented_papers')
-#    results.pop('missing_papers')
-#    results.pop('matching_papers')
+    start = datetime.datetime.now()
+
     keywords_to_skip = ['commented_papers', 'missing_papers', 'matching_papers', 'multiple_papertypes']
     types = list(results.keys())
     [types.remove(i) for i in keywords_to_skip if i in types]
@@ -263,6 +299,28 @@ def create_summary_table_plots(results):
 
     overallim = base64.b64encode(img.getvalue()).decode()
 
+    logger.debug('Overallimage %s', (datetime.datetime.now() - start))
+
+    p = figure(x_range=types, title=None, height=400, width=800, tools="save")
+    datadict=dict(types=types, counts=values, labels=[i if i > 0 else '' for i in values])
+    data = ColumnDataSource(data=datadict)
+    labels = LabelSet(x='types', y='counts',
+                      text='labels',
+                      level='glyph', render_mode='canvas', source=data,
+                      y_offset=0, text_align='center', text_baseline='bottom')
+    p.vbar(x='types', top='counts', width=0.9, source=data)
+    p.add_layout(labels)
+    p.xaxis.major_label_orientation = np.pi/4
+    p.xaxis.major_label_text_font_style='bold'
+
+    p.border_fill_color = None
+    p.y_range.start = 0
+    p.min_border_left=80
+    p.outline_line_color = "black"
+    p.xgrid.grid_line_color = None
+    bokehplot = components(p)
+
+    logger.debug('Bokehimage %s', (datetime.datetime.now() - start))
     # Individual images:
     imagedict = OrderedDict()
     for ptype in types:
@@ -272,9 +330,7 @@ def create_summary_table_plots(results):
             if k not in keywords_to_skip:
                 bars = list(info[k].keys())
                 values = [len(info[k][i]) for i in bars]
-                fig = Figure()
-                fig.patch.set_visible(False)
-                ax = fig.add_subplot(111)
+                ax.clear()
                 ax.set_title(k)
                 ax.bar(np.arange(len(bars)), values)
                 ax.set_xticks(np.arange(len(bars)))
@@ -282,11 +338,12 @@ def create_summary_table_plots(results):
                 fig.tight_layout()
                 canvas = FigureCanvas(fig)
                 img = BytesIO()
+                logger.debug('BEFORE PRINT PNG: %s:  %s', ptype, datetime.datetime.now() - start)
                 canvas.print_png(img)
                 img.seek(0)
 
                 imagedict[ptype][k] = base64.b64encode(img.getvalue()).decode()
-
-    return overallim, imagedict
+                logger.debug('%s:  %s', ptype, datetime.datetime.now() - start)
+    return overallim, imagedict, bokehplot
 
 
