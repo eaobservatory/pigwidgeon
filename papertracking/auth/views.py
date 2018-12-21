@@ -98,22 +98,13 @@ def front_page():
 
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
-    template = """
-        {{ get_flashed_messages() }}
-    {{ form.errors }}
-    <form method="POST">
-        <label>Username{{ form.username() }}</label>
-        <label>Password{{ form.password() }}</label>
-        {{ form.submit() }}
-        {{ form.hidden_tag() }}
-    </form>
-    """
+
     form = LDAPLoginForm()
 
     if form.validate_on_submit():
 
         login_user(form.user)
-        flask.flash('Logged in successful')
+        flask.flash('Logged in successfully')
         next = flask.request.args.get('next')
 
         if not is_safe_url(next):
@@ -122,7 +113,7 @@ def login():
 
         return redirect(next or url_for('auth.front_page'))
 
-    return render_template_string(template, form=form)
+    return render_template('login.html', form=form)
 
 
 @auth.route('/logout')

@@ -1,0 +1,16 @@
+{% extends "layout.html" %}
+{% block title %}
+Pigwidgeon: Log In
+{% endblock %}
+
+{% block body %}
+{{ formerrors }}
+<h2> Please login with your normal EAO username and password </h2>
+
+    <form method="POST">
+        <label>Username{{ form.username() }}</label>
+        <label>Password{{ form.password() }}</label>
+        {{ form.submit() }}
+        {{ form.hidden_tag() }}
+    </form>
+{% endblock %}
