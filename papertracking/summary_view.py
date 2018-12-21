@@ -10,7 +10,7 @@ from collections import OrderedDict
 from astropy.table import Table, Column
 
 import logging
-from flask import send_file
+from flask import send_file, url_for
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import numpy  as np
@@ -23,6 +23,19 @@ logger = logging.getLogger(__name__)
 
 import pandas as pd
 
+def fixup_summarytable(table, searchid):
+    if table is not None:
+        table = table.reset_index()
+        cols = table.columns.droplevel(1)
+        cols = ['' if i=='commentid' else i for i in cols]
+        typecols = table.columns.droplevel(0)
+        newcols = cols + typecols
+        table.columns = newcols
+        table = table.rename({'paper_id':'Paper'}, axis=1)
+        table['Paper'] = ['<a href="{}">{}</a>'.format(
+            url_for('auth.paper_info_page', paperid=i, searchid=searchid), i)
+                          for i in table['Paper'] ]
+    return table
 
 logger.setLevel('DEBUG')
 def create_summary_by_papertype(dbsession, searchid, username=None, papertypes_to_query=None,
@@ -164,6 +177,7 @@ def create_summary_by_papertype(dbsession, searchid, username=None, papertypes_t
                                             columns=['papertype'],
                                             fill_value=0)
 
+
     ptypedict = OrderedDict()
 
     # Go through each papertype.
@@ -182,6 +196,7 @@ def create_summary_by_papertype(dbsession, searchid, username=None, papertypes_t
                                                             aggfunc='count',
                                                             columns=['entered_text'],
                                                             fill_value=0)
+
 
                     else:
                         sublist = sorted(infosec.sublists, key=lambda x: x.position_)

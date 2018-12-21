@@ -426,7 +426,7 @@ def search_paper_list_bycomment(searchid):
                            search=search, papers=papers, commentkwargs=searchargs,
                            querykwargs=querykwargs)
 
-from ..summary_view import create_summary_by_papertype, create_summary_table_plots, create_summary_plots_mpl
+from ..summary_view import create_summary_by_papertype, create_summary_table_plots, create_summary_plots_mpl, fixup_summarytable
 
 
 @auth.route('/<searchid>/summarise_comments', methods=['GET', 'POST'])
@@ -485,6 +485,11 @@ def summarise_comments(searchid):
                                                                              infosections_to_query=infosections_to_query,
                                                                              papertypes_to_query=papertypes_to_query,
                                                                              paperarguments=querykwargs)
+
+        overallsummarytable = fixup_summarytable(overallsummarytable, searchid)
+        for p in ptypedict:
+            for k in ptypedict[p]:
+                ptypedict[p][k] = (ptypedict[p][k][0],fixup_summarytable(ptypedict[p][k][1], searchid))
 
         print('Creating plots!')
         mpldict = create_summary_plots_mpl(overallsummary, ptypedict)

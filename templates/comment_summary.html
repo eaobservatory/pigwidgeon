@@ -12,8 +12,8 @@
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/jq-2.2.3/dt-1.10.12/b-1.2.2/b-colvis-1.2.2/b-html5-1.2.2/b-print-1.2.2/cr-1.3.2/fh-3.1.2/se-1.2.0/datatables.min.css"/>
      <script type="text/javascript" src="https://cdn.datatables.net/v/dt/jq-2.2.3/dt-1.10.12/b-1.2.2/b-colvis-1.2.2/b-html5-1.2.2/b-print-1.2.2/cr-1.3.2/fh-3.1.2/se-1.2.0/datatables.min.js"></script>
     <script type="text/javascript" src="/static/most.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.5.2/js/dataTables.buttons.min.js"></script>
 
-</script>
 {% endblock %}
 
 {% block body %}
@@ -57,17 +57,17 @@
 
   {% endif %}
 
-
+  <div class="sidebyside">
+  {{ overallsummary.to_html()|safe}}
   <img src="data:img/png;base64,{{ mpldict['overall']|safe}}">
-
-
+  </div>
   {% set id='overallsummary' %}
   <div class="hideshow header" id="breakdown-{{id}}">
     <h4>Full classifications (click here to hide/show)</h4>
   </div>
   <div id="table-breakdown-{{id}}" style="display:none">
 
-    {{ overallsummarytable.to_html()|safe}}
+    {{ overallsummarytable.to_html(escape=False, classes='usedatatable')|safe}}
 
 
   </div>
@@ -80,10 +80,10 @@
      {% if sectiondict[0] is not none %}
       <h3>{{papertype}}: {{infosection}}</h3>
 
-
-       <img src="data:img/png;base64,{{ mpldict['{}---{}'.format(papertype, infosection)]|safe}}">
-
-      {{ sectiondict[0].to_html()|safe}}
+      <div class="sidebyside">
+      {{ sectiondict[0].to_html(escape=False, classes="inlineblock")|safe}}
+       <img src="data:img/png;base64,{{ mpldict['{}---{}'.format(papertype, infosection)]|safe}}", class="inlineblock">
+      </div>
 
      {% set id=papertype.replace(' ', '_')+'_'+infosection.replace(' ', '_')%}
 
@@ -94,7 +94,7 @@
      </div>
      <div id="table-breakdown-{{id}}" style="display:none">
 
-       {{ sectiondict[1].to_html() | safe }}
+       {{ sectiondict[1].to_html(escape=False, classes='usedatatable') | safe }}
      </div>
      {% endif %}
 

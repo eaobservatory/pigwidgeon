@@ -284,3 +284,15 @@ div.clear {
   border-bottom: 1px solid #ccc;
   padding: 5px 10px;
 }*/
+
+div.sidebyside > img, div.sidebyside > table {
+    display: inline-block;
+    vertical-align:top;
+}
+
+.sidebyside:before{
+    content: "";
+  display: inline-block;
+  vertical-align: top;
+  height: 100%;
+}
