@@ -1,0 +1,7 @@
+[DATABASE]
+# The database URL should be given in a form recognised by SQLAlchemy,
+# for example:
+#     sqlite+pysqlite:////file_path
+# mysql+mysqlconnector://<user>:<password>@<host>[:<port>]/<dbname>
+url =
+echo = 0
