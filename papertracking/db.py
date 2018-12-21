@@ -177,18 +177,9 @@ class Keyword(Base):
     paper_id = Column(Integer, ForeignKey('papers.id',
                                           onupdate='RESTRICT',
                                           ondelete='RESTRICT'))
-    keyword = Column(Unicode(20), nullable=False)
+    keyword = Column(Unicode(100), nullable=False)
     paper = relationship("Paper")
 
-class Property(Base):
-    __tablename__ = 'properties'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    paper_id = Column(Integer, ForeignKey('papers.id',
-                                          onupdate='RESTRICT',
-                                          ondelete='RESTRICT'),
-                                          nullable=False)
-    property = Column(Unicode(30), nullable=False)
-    paper = relationship("Paper")
 
 
 
