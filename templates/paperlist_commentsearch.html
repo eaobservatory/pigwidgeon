@@ -7,36 +7,34 @@
   {{ render_comment_searchbox(search) }}
   {% if papers %}
     <p>
-    {% if commentkwargs.get('usernametype', None) %}
-       {{comments|length}} comments towards
-    {% endif %}
-    {{papers|unique_attr('id')|length}} unique papers identified </p>
-
+      Found {{papers|length}} matching papers and comments</p>
   <table>
      <tr>
        <th>Paper ID</th>
        <th>Paper Bibcode</th>
        <th class="papertitle">Paper Title (click to see comments and paper info)</th>
        <th>Pub Date</th>
-       <th>Total</br>Comment</br>Count</th>
-       <th>Matching</br>comments</th>
-       {% if current_user.is_authenticated %}
+       <th>First Author</th>
+       <th>Comment</br>Count</th>
+       {% if querykwargs['username'] != None %}
+       <th>{{querykwargs['username']}}</br>comments</th>
+       {% elif current_user.is_authenticated %}
        <th>Your</br>comments</th>
        {% endif %}
        <th>Refereed</th>
      </tr>
-  {% for paper in papers|sort(attribute='id') %}
+  {% for paper in papers|sort(attribute='Paper.id') %}
      <tr>
-       <td>{{paper.id}}</td>
-       <td>{{paper.bibcode}}</td>
-       <td class="papertitle"><a href="{{url_for('auth.paper_comments_info_page', searchid=search.id, paperid=paper.id)}}">{{paper.title}}</a></td>
-       <td>{{paper.pubdate}}</td>
-       <td>{{paper.comments | length}}</td>
-       <td>{{comments|selectattr("paper_id", "equalto", paper.id)|list| length}}</td>
-       {% if current_user.is_authenticated %}
-       <td> {{paper.comments|selectattr("username", "equalto", current_user.username)|list |length}}</td>
+       <td>{{paper[0].id}}</td>
+       <td>{{paper[0].bibcode}}</td>
+       <td class="papertitle"><a href="{{url_for('auth.paper_info_page', searchid=search.id, paperid=paper[0].id)}}">{{paper[0].title}}</a></td>
+       <td>{{paper[0].pubdate}}</td>
+       <td>{{paper[1]}}</td>
+       <td>{{paper[2]}}</td>
+       {% if querykwargs['username'] != None or current_user.is_authenticated %}
+       <td> {{paper[3]}}</td>
        {% endif %}
-       <td>{% if paper.refereed %}✓{% else %} ✗ {% endif %}</td>
+       <td>{% if paper[0].refereed %}✓{% else %} ✗ {% endif %}</td>
      </tr>
    {% endfor %}
   </table>
