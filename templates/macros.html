@@ -495,9 +495,9 @@ to
        placeholder="Bibcode/arxiv or substring">
 <label for="done">Comments:<label>
 <select name="done">
-  <option value="" {{' selected="selected"' | safe if querykwargs['already_classified'] is defined}}>n/a</option>
-  <option value="true" {{' selected="selected"' | safe if querykwargs['already_classified']== 'true'}}>Commented on</option>
-  <option value="false" {{' selected="selected"' | safe if querykwargs['already_classified']== 'false'}}>Not commented on</option>
+  <option value="" {{' selected="selected"' | safe if querykwargs['done'] is defined}}>n/a</option>
+  <option value="true" {{' selected="selected"' | safe if querykwargs['done']== 'true'}}>Commented on</option>
+  <option value="false" {{' selected="selected"' | safe if querykwargs['done']== 'false'}}>Not commented on</option>
 </select>
 by:
 <input type="text" name="username" value='{{querykwargs["username"] | safe if querykwargs['username'] is not none}}' placeholder="username">
