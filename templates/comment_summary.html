@@ -43,72 +43,62 @@
   <input type="submit" value="filter">
 </form>
 
-{% if results != None %}
+{% if overallsummary is not none %}
   <h2> Overall breakdown of papers in this search </h2>
   <p> Please remember that papers can be in multiple categories.</p>
 
-  {% if results['missing_papers'] | length > 0 %}
+  {% if missing_papers | length > 0 %}
 
-  <p> {{ results['missing_papers']|length}} papers matching this query have not yet been analysed {% if querykwargs["username"] is not none %}  by {{querykwargs["username"]}}{% endif %}:</br>
-  {% for j in results['missing_papers']|sort(attribute='id') %}
-    • <a href="{{url_for('auth.paper_info_page', paperid=j.id, searchid=searchid)}}">{{j.title}}: {{j.id}}</a></br>
+  <p> {{ missing_papers|length}} papers matching this query have not yet been analysed {% if querykwargs["username"] is not none %}  by {{querykwargs["username"]}}{% endif %}:</br>
+  {% for j in missing_papers|sort(attribute='Paper.id') %}
+    • <a href="{{url_for('auth.paper_info_page', paperid=j.Paper.id, searchid=searchid)}}">{{j.Paper.title}}: {{j.Paper.id}}</a></br>
   {% endfor %}
   </p>
-  {% endif %}
-  <img src="data:img/png;base64,{{overallim}}"/>
-  <table>
-      <tr>
-        <th> </th>
-        <th>Count</th>
-        </tr>
-      {% for papertype in results |reject('equalto', 'matching_papers')|reject('equalto', 'commented_papers') |reject('equalto', 'missing_papers') %}
-      <tr>
-        <th>{{papertype}}</th>
-        <td>{{results[papertype]['matching_papers']|length}}</td>
-      </tr>
-      {% endfor %}
-  </table>
 
+  {% endif %}
+
+
+  <img src="data:img/png;base64,{{ mpldict['overall']|safe}}">
+
+
+  {% set id='overallsummary' %}
   <div class="hideshow header" id="breakdown-{{id}}">
-    <h4>Table of overall classifications (click here to hide/show)</h4>
+    <h4>Full classifications (click here to hide/show)</h4>
   </div>
   <div id="table-breakdown-{{id}}" style="display:none">
-    {% set table = overallsummary %}
-    {{render_summarytable(table, searchid, id='overallsummary')}}
+
+    {{ overallsummarytable.to_html()|safe}}
+
+
   </div>
-  {% for papertype in results | reject('equalto', 'matching_papers')|reject('equalto', 'commented_papers') |reject('equalto', 'missing_papers')%}
 
-    {% set matchingpapers = results[papertype]['matching_papers'] %}
+  {% for papertype, nested in ptypedict.items() %}
+  {% set matchingpapers = overallsummary[overallsummary.index == papertype]['counts'].values[0] %}
+     <h2>{{papertype}}: {{ matchingpapers }} matched publications</h2>
 
-    {% if matchingpapers |length > 0 %}
-     <h2>{{papertype}}: {{ matchingpapers|length }} matching publications</h2>
-      {% for infosection in results[papertype] | reject('equalto', 'matching_papers') | reject('equalto', 'multiple_papertypes') %}
-      <h3>{{infosection}}</h3>
+      {% for infosection, sectiondict in nested.items() %}
+     {% if sectiondict[0] is not none %}
+      <h3>{{papertype}}: {{infosection}}</h3>
+
+
+       <img src="data:img/png;base64,{{ mpldict['{}---{}'.format(papertype, infosection)]|safe}}">
+
+      {{ sectiondict[0].to_html()|safe}}
+
      {% set id=papertype.replace(' ', '_')+'_'+infosection.replace(' ', '_')%}
-     <img src="data:img/png;base64,{{imagedict[papertype][infosection]}}"/>
-     <table>
-       <tr>
-         <th> </th>
-         <th>Count</th>
-       </tr>
-       {% for category in results[papertype][infosection]| reject('equalto', 'matching_papers')|reject('equalto', 'commented_papers') |reject('equalto', 'missing_papers')%}
-       <tr>
-         <th>{{category}}</th>
-         <td>{{results[papertype][infosection][category]|length}}</td>
-       </tr>
-       {% endfor %}
-     </table>
+
+
 
      <div class="hideshow header" id="breakdown-{{id}}">
      <h4>Table of papers categorized by {{infosection}} (click here to hide/show)</h4>
      </div>
      <div id="table-breakdown-{{id}}" style="display:none">
-        {% set table = summarytables[papertype][infosection] %}
-        {{render_summarytable(table, searchid, id=id)}}
+
+       {{ sectiondict[1].to_html() | safe }}
      </div>
+     {% endif %}
 
       {% endfor %}
-    {% endif %}
   {% endfor %}
 
 {% endif %}
