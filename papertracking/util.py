@@ -28,6 +28,6 @@ def create_session():
     #         engine = create_engine('sqlite:///{}'.format(dbpath))
     #         Base.metadata.create_all(engine)
 
-    engine = create_engine(dburl, echo=bool(dbconfig.get('echo', 0)))
+    engine = create_engine(dburl, echo=bool(int(dbconfig.get('echo', 0))))
     session = sessionmaker(bind=engine)
     return session()
