@@ -7,22 +7,20 @@ import os
 from flask import Flask, redirect, url_for, render_template, request, session
 import flask
 
-from sqlalchemy.orm import sessionmaker, relationship
-from sqlalchemy import create_engine, Column, ForeignKey, Unicode, UnicodeText, \
-    Integer, String, Table, Unicode, Boolean, DateTime, func
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import aliased
+from sqlalchemy import  func
 
-import werkzeug.exceptions
+
 import werkzeug.routing
 from werkzeug import MultiDict
 
 import datetime
 
 from ..db import Paper, Search, PaperType, InfoSection, InfoSublist, \
-    Base, Comment, InfoSectionValue, Identifier, PaperTypeValue
+    Base, Comment, InfoSectionValue, Identifier, PaperTypeValue, Author
 from ..search import create_search_from_request, create_comment_from_request
 from ..paper import get_paper_info
-from ..util import get_db_session, create_session, isType
+from ..util import  create_session, isType
 
 import numpy as np
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
@@ -32,7 +30,8 @@ from flask import request, render_template, render_template_string, flash, redir
 from flask.ext.login import current_user, login_user, \
     logout_user, login_required
 from papertracking import login_manager, ldap_manager
-from papertracking.auth.user import User, LoginForm
+
+from papertracking.auth.user import User
 
 from flask_ldap3_login.forms import LDAPLoginForm
 
@@ -40,7 +39,10 @@ from papertracking import app, users
 
 auth = Blueprint('auth', __name__)
 
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
+
+
+
 def get_commentsearch_info(searchquery, search):
     res = []
     if 'papertype' in searchquery:
@@ -221,7 +223,7 @@ def paper_info_page(paperid, searchid):
 
 def create_papersearch_query(dbsession, searchid, initialquery=None, startdate=None,
                              enddate=None, refereed=None,
-                             done=None, username=None, ident=None):
+                             done=None, username=None, ident=None, currentuser=None):
 
     from sqlalchemy import distinct
     if not initialquery:
@@ -251,26 +253,41 @@ def create_papersearch_query(dbsession, searchid, initialquery=None, startdate=N
             refereed = False
         query = query.filter(Paper.refereed == refereed)
 
+    if currentuser is not None and username is None:
+        username = currentuser
+
+    if username:
+
+        usernamequery = dbsession.query(Comment).filter(Comment.username==username).subquery()
+        bcomm = aliased(Comment, usernamequery)
+        usercommentcount = func.sum(bcomm.id.isnot(None)).label('usercommentcount')
+        query = query.add_column(usercommentcount).outerjoin(bcomm, Paper.id==bcomm.paper_id)
 
     if done:
+
         if done.lower() == "true":
             done = True
         else:
             done = False
 
         if done is True:
-            # Find papers with any comments
-            query = query.filter(Comment.paper_id==Paper.id)
+            if Comment not in [mapper.class_ for mapper in query._join_entities] and \
+                      Comment not in [i['entity'] for i in query.column_descriptions]:
+
+                query = query.outerjoin(Comment, Paper.id==Comment.paper_id)
             if username:
+
+                query = query.filter(Comment.username==username)
                 # Find papers with comments by the named user.
-                subquery = dbsession.query(distinct(Comment.paper_id)).filter(Comment.username==username)
-                query = query.filter(Paper.id.in_(subquery))
+                #subquery = dbsession.query(distinct(Comment.paper_id)).filter(Comment.username==username)
+                #query = query.filter(Paper.id.in_(subquery))
         else:
             print('already classified is not True')
             if username:
+                query = query.filter(usercommentcount == 0)
                 # Search for papers with no comments from that user name.
-                subquery = dbsession.query(distinct(Comment.paper_id)).filter(Comment.username==username)
-                query = query.filter(Paper.id.notin_(subquery))
+                #subquery = dbsession.query(distinct(Comment.paper_id)).filter(Comment.username==username)
+                #query = query.filter(Paper.id.notin_(subquery))
             else:
                 # Search only for papers with no comments by anyone.
                 print('finding papers with no comments')
@@ -291,10 +308,13 @@ def create_comment_search(dbsession, searchid, searchargs, paperargs=None):
     print('creating commentsearch query')
     print(paperargs)
 
-    search = dbsession.query(Search).filter(Search.id==int(searchid)).one()
-    commentquery  = dbsession.query(Comment).filter(Search.id==int(searchid))
+    commentcount = func.sum(Comment.id.isnot(None)).label('Commentcount')
+    commentquery  = dbsession.query(Paper, Author.author, commentcount).outerjoin(Author, Paper.id==Author.paper_id).filter(Author.position_==0).outerjoin(Comment, Paper.id==Comment.paper_id).group_by(Paper.id)
+    commentquery = commentquery.filter(Search.id==int(searchid))
+
+
     usernametype = searchargs.get('usernametype', 'perUser')
-    combine_or = searchargs.get('combine_or', False)
+    combine_or = searchargs.get('combine_or', True)
 
     print('creating papertypes query')
 
@@ -349,8 +369,8 @@ def create_comment_search(dbsession, searchid, searchargs, paperargs=None):
 
     # Ensure you filter by paper values too.
     if paperargs:
-        commentquery = commentquery.join(Paper)
-        commentquery = create_papersearch_query(dbsession, searchid, initialquery = commentquery, **paperargs)
+        #commentquery = commentquery.join(Paper)
+        commentquery = create_papersearch_query(dbsession, searchid, initialquery=commentquery, **paperargs)
 
 
     # Ensure you only get most recent, or most recent by user for
@@ -375,7 +395,7 @@ def search_paper_list_bycomment(searchid):
         startdate = request.args.get('startdate',None)
         enddate  = request.args.get('enddate', None)
         refereed = request.args.get('refereed', None)
-
+        combine_or = bool(request.args.get('combine_or', True))
 
         username = request.args.get('username', None)
         ident = request.args.get('ident', None)
@@ -399,16 +419,16 @@ def search_paper_list_bycomment(searchid):
         session['comment_query'].pop('searchid')
 
     query = create_comment_search(dbsession, search.id, searchargs, paperargs=querykwargs)
-    comments = query.order_by(Comment.paper_id).all()
-    papers = list(set([i.paper for i in comments]))
-    print('Found {} papers'.format(len(papers)))
-    print(set([i.id for i in papers]))
+
+    papers = query.order_by(Comment.paper_id).all()
 
     return render_template('paperlist_commentsearch.html', commentfake=commentfake,
-                           search=search, papers=papers, comments=comments, commentkwargs=searchargs,
+                           search=search, papers=papers, commentkwargs=searchargs,
                            querykwargs=querykwargs)
 
-from ..summary_view import create_summary_by_papertype, create_summary_table_plots
+from ..summary_view import create_summary_by_papertype, create_summary_table_plots, create_summary_plots_mpl
+
+
 @auth.route('/<searchid>/summarise_comments', methods=['GET', 'POST'])
 def summarise_comments(searchid):
     dosearch = request.args.get('dosearch', 0, type=int)
@@ -458,32 +478,32 @@ def summarise_comments(searchid):
         else:
             print('no infosections being ignored')
             infosections_to_query = None
-        results, overallsummary, summarytables = create_summary_by_papertype(session,
+
+        missing_papers, res, overallsummary, overallsummarytable, ptypedict = create_summary_by_papertype(session,
                                                                              searchid,
                                                                              username=username,
                                                                              infosections_to_query=infosections_to_query,
                                                                              papertypes_to_query=papertypes_to_query,
                                                                              paperarguments=querykwargs)
-        overallim, imagedict = create_summary_table_plots(results)
-        #fig = create_msb_image(msbs, utdate, (semstart, semend))
-        #canvas = FigureCanvas(fig)
-        #img = StringIO.StringIO()
-        #canvas.print_png(img)
-        #img.seek(0)
-        #im = send_file(img, mimetype='image/png')
+
+        print('Creating plots!')
+        mpldict = create_summary_plots_mpl(overallsummary, ptypedict)
+        print('Created plots!')
+
     else:
-        results = None
         searchid = None
         overallsummary = None
         summarytables = None
-        overallim = None
-        imagedict = None
+        mpldict = None
+        ptypedict = None
+        missing_papers= None
+        overallsummarytable = None
 
 
-    return render_template('comment_summary.html', search=search, querykwargs=querykwargs, results=results,
+    return render_template('comment_summary.html', search=search, querykwargs=querykwargs, missing_papers=missing_papers,
                            searchid=searchid,
-                           overallsummary=overallsummary, summarytables=summarytables,
-                           overallim=overallim, imagedict = imagedict)
+                           overallsummary=overallsummary, overallsummarytable=overallsummarytable,
+                           mpldict=mpldict, ptypedict=ptypedict)
 
 
 
@@ -498,23 +518,31 @@ def search_paper_list(searchid):
     done = request.args.get('done', None)
     username = request.args.get('username', None)
     ident = request.args.get('ident', None)
-  
+
     querykwargs = dict(startdate=startdate,
                        enddate=enddate,
                        refereed=refereed,
                        done=done,
                        username=username,
                        ident=ident,
+                       currentuser=getattr(current_user, 'username', None)
                        )
 
     print('query_kwargs are {}'.format(querykwargs))
     session['paper_query'] = querykwargs
 
-    query = create_papersearch_query(dbsession, search.id, **querykwargs)
+    commentcount = func.sum(Comment.id.isnot(None)).label('Commentcount')
+
+    query = dbsession.query(Paper, Author.author, commentcount).outerjoin(Author, Paper.id==Author.paper_id).filter(
+        Author.position_==0).outerjoin(Comment, Paper.id==Comment.paper_id).group_by(Paper.id)
+
+    query = query.filter(Search.id==int(searchid))
+
+    query = create_papersearch_query(dbsession, search.id, initialquery=query, **querykwargs)
+
     print('query is {}'.format(query))
     papers = query.order_by(Paper.id).all()
     print('Found {} papers.'.format(len(papers)))
-
     # Filter within
     return render_template('paperlist.html', search=search, papers=papers, querykwargs=querykwargs)
 
@@ -653,3 +681,8 @@ def is_safe_url(target):
     test_url = urlparse(urljoin(request.host_url, target))
     return test_url.scheme in ('http', 'https') and \
            ref_url.netloc == test_url.netloc
+
+@app.template_filter('debug')
+def debug(text):
+  print(text)
+  return ''
