@@ -19,29 +19,6 @@ ps_association_table = Table(
     Column('search_id', Integer, ForeignKey('searches.id'))
 )
 
-class Paper(Base):
-    __tablename__ = "papers"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    bibcode = Column(Unicode(20), nullable=False)
-    title = Column(UnicodeText, default=None)
-    abstract = Column(UnicodeText,default=None)
-    pub_openaccess = Column(Boolean)
-    refereed = Column(Boolean)
-    doi = Column(Unicode(20), default=None)
-    pubdate = Column(Date)
-    first_added = Column(DateTime, default=func.now())
-    updated = Column(DateTime, nullable=True,
-                     onupdate=func.now())
-    identifiers = relationship("Identifier")
-    keywords = relationship("Keyword")
-    properties = relationship("Property")
-    authors = relationship("Author", order_by="Author.position_")
-    searches = relationship("Search", secondary=ps_association_table)
-    comments = relationship("Comment")
-
-    def __repr__(self):
-        return "<Paper(title={})>".format(self.title)
-
 
 class Identifier(Base):
     __tablename__ = "identifiers"
@@ -184,3 +161,25 @@ class Keyword(Base):
 
 
 
+class Paper(Base):
+    __tablename__ = "papers"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    bibcode = Column(Unicode(20), nullable=False)
+    title = Column(UnicodeText, default=None)
+    abstract = Column(UnicodeText,default=None)
+    pub_openaccess = Column(Boolean)
+    refereed = Column(Boolean)
+    doi = Column(Unicode(100), default=None)
+    pubdate = Column(Date)
+    first_added = Column(DateTime, default=func.now())
+    updated = Column(DateTime, nullable=True,
+                     onupdate=func.now())
+    identifiers = relationship("Identifier")
+    keywords = relationship("Keyword")
+    authors = relationship("Author", order_by="Author.position_")
+    searches = relationship("Search", secondary=ps_association_table)
+    comments = relationship("Comment")
+
+
+    def __repr__(self):
+        return "<Paper(title={})>".format(self.title)
