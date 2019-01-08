@@ -643,7 +643,7 @@ def filter_data_store_and_summarize(n_clicks, years, afftext, affsearchtype, *ar
             values = [j for i in selected_mergers for j in mergers[i]]
             if len(values) != len(set(values)):
                 print('Warning: name for section %s contained in multiple selected mergere' % sect)
-                messages += ['Warning: a name was contained in multiple selected mergers in section {}. Not merging'.format(section)]
+                messages += ['Warning: a name was contained in multiple selected mergers in section {}. Not merging'.format(sect)]
 
             elif len(selected_mergers) > 0:
                 newmergers = {}
