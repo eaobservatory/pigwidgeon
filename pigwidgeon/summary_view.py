@@ -2,17 +2,17 @@
 from sqlalchemy import func, and_
 from sqlalchemy.orm import subqueryload
 import datetime
-from papertracking.db import Paper, Identifier, Author, Search, PaperType, PaperTypeValue, \
+from .db import Paper, Identifier, Author, Search, PaperType, PaperTypeValue, \
     Comment, InfoSection, InfoSectionValue, InfoSublist
 from io import BytesIO
-from papertracking.util import create_session
+from .util import create_session
 from collections import OrderedDict
 from astropy.table import Table, Column
 
 import logging
 from flask import send_file, url_for
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+
+
 import numpy  as np
 import base64
 
@@ -255,6 +255,8 @@ def create_summary_table_dict(results, matches=None, categories=None):
     return summarytable
 
 def create_mpl_barchart(series, title=False):
+    from matplotlib.figure import Figure
+    from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
     fig = Figure()
     fig.patch.set_visible(False)
     ax = fig.add_subplot(111)
@@ -292,7 +294,8 @@ def create_summary_plots_mpl(overallsummary, ptypedict):
 
 def create_summary_table_plots(results):
 
-
+    from matplotlib.figure import Figure
+    from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
     start = datetime.datetime.now()
 
     keywords_to_skip = ['commented_papers', 'missing_papers', 'matching_papers', 'multiple_papertypes']

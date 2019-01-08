@@ -45,7 +45,10 @@ login_manager.login_view = 'auth.login'
 ldap_manager = LDAP3LoginManager(app)
 users = {}
 
-from papertracking.auth.views import auth
+from .auth.views import auth
 app.register_blueprint(auth)
 
+
+from .views.jcmt import jcmt
+app.register_blueprint(jcmt)
 

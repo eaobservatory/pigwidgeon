@@ -4,7 +4,7 @@ from wtforms import TextField, PasswordField
 from wtforms.validators import InputRequired
 from flask_login import UserMixin
 
-from papertracking import users
+from .. import users
 
 def get_ldap_connection():
     conn = ldap.initialize(app.config['LDAP_PROVIDER_URL'])

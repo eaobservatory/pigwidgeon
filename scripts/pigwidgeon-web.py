@@ -15,7 +15,7 @@ Options:
 
 
 from docopt import docopt
-from papertracking import app
+from pigwidgeon import app
 
 # Start flask app.
 # Parse arguments

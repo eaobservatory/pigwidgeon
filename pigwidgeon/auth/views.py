@@ -23,19 +23,19 @@ from ..paper import get_paper_info
 from ..util import  create_session, isType
 
 import numpy as np
-from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+
 
 from flask import request, render_template, render_template_string, flash, redirect, \
     url_for, Blueprint, g
-from flask.ext.login import current_user, login_user, \
+from flask_login import current_user, login_user, \
     logout_user, login_required
-from papertracking import login_manager, ldap_manager
+from .. import login_manager, ldap_manager
 
-from papertracking.auth.user import User
+from ..auth.user import User
 
 from flask_ldap3_login.forms import LDAPLoginForm
 
-from papertracking import app, users
+from .. import app, users
 
 auth = Blueprint('auth', __name__)
 
