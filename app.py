@@ -522,7 +522,10 @@ selection_results = html.Div([
     html.H2('Summary of selected data'),
     html.Div(id='filtered-data-parent', children=[
         html.Div(id='filtered-data', style={'display': 'none'}),
-        html.Div(id='filtered-data-warnings')
+        html.Div(id='filtered-data-warnings'),
+        html.Div(id='filtered-data-summary', children=[html.H4(id='summary_title'),
+                                                       html.Div(id='filtered_table_div',
+                                                                style={'display': 'none'})]),
     ]),
 ])
 
@@ -705,10 +708,27 @@ def filter_data_store_and_summarize(n_clicks, years, afftext, affsearchtype, *ar
     for section in full_info.keys():
         results = get_results(filtered, section, years, byyear=True, order=section_dict.get(section, None))
         resultsdict[section] = results.to_json(date_format='iso', orient='split')
+
+
     return [html.Div(id='filtered-data', style={'display': 'none'}, children=json.dumps(resultsdict)),
             html.Div(id='filtered-data-warnings', children=messages),
-            html.Div(id='filtered-data-summary', children=[html.Div(summary), filtered_table]),
+            html.Div(id='filtered-data-summary',
+                     children=[html.Div(summary),
+                               html.H4("Table of papers (click here to hide/show)", id='summary_title'),
+                               html.Div(children=filtered_table, style={'display': 'none'},
+                                        id='filtered_table_div')
+                           ]
+                     ),
     ]
+
+@app.callback(Output('filtered_table_div', 'style'),
+              [Input('summary_title', 'n_clicks')])
+def show_hide_summarytable(n_clicks):
+    if n_clicks %2 == 0:
+        return {'display': 'none'}
+    else:
+        return {}
+
 
 
 
