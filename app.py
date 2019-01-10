@@ -14,60 +14,6 @@ import json
 from operator import attrgetter
 
 
-db = True
-
-if db:
-    from dash_getinfo import get_pigwidgeon_info
-    df, sublists = get_pigwidgeon_info(['JCMT Science Paper', 'JCMT Theory Paper'], 1)
-    df['year'] = [i.year for i in df.pubdate]
-
-    #with open('testing-jcmtdata.json', 'w') as f:
-    #    a = df.to_json(date_format='iso', orient='split')
-    #    f.writelines(a)
-
-
-    # Create look up lists of sublists in correct DB order.
-    lookup_sublists = {}
-    sections = set([i.section for i in sublists])
-    for section in sections:
-        temp = sorted([i.InfoSublist for i in sublists if i.section == section],
-                      key=attrgetter('position_'))
-        lookup_sublists[section] = [i.named for i in temp]
-
-else:
-    df = pd.read_json('testing-jcmtdata.json', orient='split')
-    lookup_sublists = {'Observations': ['PI Program', 'Large Program', 'Archival', 'Previously Published', 'None', 'Unknown'], 'Flags': ['Missing Project codes'], 'Science Areas': ['Astrochemistry', 'Solar System (Comets, planets and satellites etc.)', 'Cosmology', 'Debris disks and circumstellar matter', 'Galaxies', 'Star formation and ISM', 'Stars and compact objects', 'Other', 'None', 'Unknown'], 'Instrument': ['SCUBA-2', 'POL-2', 'FTS-2', 'HARP', 'RxA3', 'RxA3(M)', 'RxW', 'SCUBA', 'RxA', 'RxB', 'SCUBA-POL', 'UKT14', 'AzTEC', 'VLBI', 'Other', 'None', 'Unknown'], 'Affiliation': ['China', 'Japan', 'Korea', 'Taiwan', 'UK', 'Canada', 'Netherlands (JAC member)', 'International', 'UH', 'Vietnam', 'Thailand', 'EAO', 'None', 'Unknown']}
-
-
-
-df['sublist_name'][df['sublist_name'] == 'Solar System (Comets, planets and satellites etc.)'] = 'Solar System'
-lookup_sublists['Science Areas']
-#filtereddf = df.copy(deep=True)
-
-# Global values: do not change these within dash!
-
-
-predefined_merge_sets = {
-    'Observations': {'Large/Legacy Programs': ['JLS', 'LAP']},
-    'Instrument': {'RxAs': ['RxA', 'RxA3', 'RxA3(M)'],
-                   'Other': ['Other', 'AzTEC', 'RxB', 'RxW', 'Unknown'],
-                   'Heterodyne': ['HARP', 'RxA3', 'RxA3(M)', 'RxW', 'RxA', 'RxB'],
-                   'Continuum': ['SCUBA-2', 'SCUBA', 'UKT14'],
-                   'Polarimetric': ['POL-2', 'SCUBA-POL'],
-               },
-
-    'Affiliation': {'International': ['Netherlands (JAC member)', 'International'],
-                    'EAO members': ['China', 'Japan', 'Korea', 'Taiwan', 'Vietnam', 'Thailand'],
-                    'Former JAC': ['Netherlands (JAC member)', 'UK', 'Canada'],
-                    'core EAO': ['China', 'Japan', 'Korea', 'Taiwan'],}
-}
-
-
-jcmt_defaults = dict(
-    default_papertypes = ['JCMT Science Paper', 'JCMT Theory Paper'],
-    firstyear = 2013,
-)
-
 
 
 affiliations = set(df[df['sectionnamed']=='Affiliation']['sublist_name'])
@@ -279,6 +225,56 @@ def generate_render_display_functions(thesection):
         return [graph, tab]
 
     return render_display_func
+
+
+
+
+
+from dash_getinfo import get_pigwidgeon_info
+df, sublists = get_pigwidgeon_info(['JCMT Science Paper', 'JCMT Theory Paper'], 1)
+df['year'] = [i.year for i in df.pubdate]
+
+
+# Create look up lists of sublists in correct DB order.
+lookup_sublists = {}
+sections = set([i.section for i in sublists])
+for section in sections:
+    temp = sorted([i.InfoSublist for i in sublists if i.section == section],
+                  key=attrgetter('position_'))
+    lookup_sublists[section] = [i.named for i in temp]
+
+
+# Global values: do not change these within dash!
+
+
+predefined_merge_sets = {
+    'Observations': {'Large/Legacy Programs': ['JLS', 'LAP']},
+    'Instrument': {'RxAs': ['RxA', 'RxA3', 'RxA3(M)'],
+                   'Other': ['Other', 'AzTEC', 'RxB', 'RxW', 'Unknown'],
+                   'Heterodyne': ['HARP', 'RxA3', 'RxA3(M)', 'RxW', 'RxA', 'RxB'],
+                   'Continuum': ['SCUBA-2', 'SCUBA', 'UKT14'],
+                   'Polarimetric': ['POL-2', 'SCUBA-POL'],
+               },
+
+    'Affiliation': {'International': ['Netherlands (JAC member)', 'International'],
+                    'EAO members': ['China', 'Japan', 'Korea', 'Taiwan', 'Vietnam', 'Thailand'],
+                    'Former JAC': ['Netherlands (JAC member)', 'UK', 'Canada'],
+                    'core EAO': ['China', 'Japan', 'Korea', 'Taiwan'],}
+}
+
+
+jcmt_defaults = dict(
+    default_papertypes = ['JCMT Science Paper', 'JCMT Theory Paper'],
+    firstyear = 2013,
+)
+
+
+
+affiliations = set(df[df['sectionnamed']=='Affiliation']['sublist_name'])
+instruments = set(df[df['sectionnamed']=='Instrument']['sublist_name'])
+
+full_info = {'Overall': []}
+full_info.update(lookup_sublists)
 
 
 
