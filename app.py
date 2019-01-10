@@ -67,7 +67,7 @@ def generate_paper_table(dataframe):
                 row += [html.Td(value)]
         rows += [html.Tr(row)]
     body = html.Tbody(rows)
-    return html.Table([head, body])
+    return html.Table(className='resultstable', children=[head, body])
 
 
 
@@ -106,7 +106,7 @@ def generate_display_dropdown_callbacks(section):
     output = Output('div-sublist-dropdown-{}'.format(section), 'children')
     @app.callback(output,inputs)
     def render_sublist_dropdown(jsoninfo):
-        print('Rendering sublist dropdonw!')
+        print('Rendering sublist dropdown!')
 
         pdjson = None
         if jsoninfo is not None:
@@ -114,7 +114,6 @@ def generate_display_dropdown_callbacks(section):
         if pdjson:
             table = pd.read_json(pdjson, orient='split')
             columns = table.columns
-            print('columns for display dropdown are', columns)
             dropdown = dcc.Dropdown(id='sublist-dropdown-{}'.format(section),
                                     multi=True,
                                     options=[{'label':i, 'value':i} for i in columns],
@@ -478,7 +477,6 @@ def generate_merge_functions(section):
 
 
         jsoninfo = existingchildren[1]['props']['children']
-        print('jsoninfo is: ', jsoninfo, type(jsoninfo))
         if jsoninfo  and jsoninfo != [] and jsoninfo != [None]:
             mergers = json.loads(jsoninfo)
 
@@ -508,11 +506,7 @@ def generate_merge_functions(section):
                                   options = options,
                                   values = values)
         checklisttext = 'Existing mergers: (select to apply these when filtering data)'
-        #formatted_output = ['{}: {}'.format(key, values) for key, values in mergers.items()]
 
-        #interleave formatted data with new lines:
-        #formatted_output = [elem for x in formatted_output for elem in (x, html.Br())][:-1]
-        #print(formatted_output)
         children = [html.Div(id='merger-message-{}'.format(section), children=[message]), html.Div(id='merged-values-{}-hidden'.format(section), hidden=True, children=jsoninfo),
                     html.Div(id='merged-values-{}-display'.format(section), children=[checklisttext, checklist]),
                     ]
@@ -526,14 +520,17 @@ for section in as_sections:
 merger_section_states = [State('merged-values-{}-hidden'.format(i), 'children') for i in as_sections]
 merger_checklist_states = [State('merger-tickboxes-{}'.format(i), 'values') for i in as_sections]
 
+
 selection_results = html.Div([
     html.H2('Summary of selected data'),
+
     html.Div(id='filtered-data-parent', children=[
         html.Div(id='filtered-data', style={'display': 'none'}),
         html.Div(id='filtered-data-warnings'),
         html.Div(id='filtered-data-summary', children=[html.H4(id='summary_title'),
                                                        html.Div(id='filtered_table_div',
                                                                 style={'display': 'none'})]),
+
     ]),
 ])
 
@@ -591,20 +588,16 @@ def filter_data_mergecats(df, mergerdict):
                    (datatable['sublist_name'].isin(valuestoupdate))
             datatable.loc[mask, 'sublist_name'] = newname
 
-    print(mergerdict)
-
     return datatable
 
 
 
 # Callbacks for data selection!
 def filter_data_sublistname(datatable, years, sectiondict):
-    print(years)
     filtered = datatable[datatable.year.between(years[0], years[1])]
 
     paper_ids = None
     for name, vals in sectiondict.items():
-        print(name, vals)
         if vals  and set(vals) != set(lookup_sublists[name]) and len(vals) > 0:
             mask = (filtered['sectionnamed']==name)&(filtered['sublist_name'].isin(vals))
             pids = set(filtered['paper_id'][mask])
@@ -734,10 +727,6 @@ def filter_data_store_and_summarize(n_clicks, years, afftext, affsearchtype, *ar
 
     # Inser a line break inbetween each item
     summary = [x for line in summary for x in (line, html.Br())]
-    print(summary)
-
-
-
 
     # Now get the results info for all the graphs:
     resultsdict = {}
@@ -753,7 +742,7 @@ def filter_data_store_and_summarize(n_clicks, years, afftext, affsearchtype, *ar
                                csv_link,
                                html.H4("Table of papers (click here to hide/show)", id='summary_title'),
                                html.Div(children=filtered_table, style={'display': 'none'},
-                                        id='filtered_table_div')
+                                        id='filtered_table_div'),
                            ]
                      ),
     ]
@@ -761,11 +750,10 @@ def filter_data_store_and_summarize(n_clicks, years, afftext, affsearchtype, *ar
 @app.callback(Output('filtered_table_div', 'style'),
               [Input('summary_title', 'n_clicks')])
 def show_hide_summarytable(n_clicks):
-    if n_clicks %2 == 0:
+    if not n_clicks or n_clicks %2 == 0:
         return {'display': 'none'}
     else:
         return {}
-
 
 
 
