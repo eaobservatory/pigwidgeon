@@ -617,27 +617,22 @@ def filter_data_sublistname(datatable, years, sectiondict):
     return filtered
 
 
+def filter_data(years, section_dict, afftext, affsearchtype, mergerargs, mergerchecklistargs):
 
-
-# filter the data, store it in the output and summarise it for viewing.
-@app.callback(Output('filtered-data-parent', 'children'),
-              [Input('btn-filter', 'n_clicks')],
-              [State('year-select', 'value'),
-               State('aff-text-string', 'value'),
-               State('affiliation-search-type', 'values')] + as_section_states + merger_section_states + merger_checklist_states
-        )
-def filter_data_store_and_summarize(n_clicks, years, afftext, affsearchtype, *args):
-    print(affsearchtype, type(affsearchtype))
-    print('filter_data_store_and_summarize')
-    sections = list(as_sections)
-    section_dict = dict(zip(as_sections, args[0:len(as_sections)]))
+    print('filter_data')
 
     merger_dict = {}
-    mergerargs = args[len(as_sections):2*len(as_sections)]
-    mergerchecklistargs = args[2*len(as_sections):3*len(as_sections)]
 
-
-    summarys = {}
+    # Find out which sections are being excluded and included
+    excluded_sections = {}
+    included_sections = {}
+    for section in as_sections:
+        if section in section_dict:
+            allsections = set(lookup_sublists[section])
+            requestedsections = set(section_dict[section])
+            if requestedsections != allsections:
+                excluded_sections[section] = allsections - requestedsections
+                included_sections[section] = requestedsections
 
 
     messages = []
@@ -677,6 +672,27 @@ def filter_data_store_and_summarize(n_clicks, years, afftext, affsearchtype, *ar
 
     filtered = filter_data_sublistname(filtered, years, section_dict)
     filtered = filter_data_afftext(filtered, afftext, affsearchtype)
+    return filtered, merger_dict, messages, included_sections
+
+
+# filter the data, store it in the output and summarise it for viewing.
+@app.callback(Output('filtered-data-parent', 'children'),
+              [Input('btn-filter', 'n_clicks')],
+              [State('year-select', 'value'),
+               State('aff-text-string', 'value'),
+               State('affiliation-search-type', 'values')] + as_section_states + merger_section_states + merger_checklist_states
+        )
+def filter_data_store_and_summarize(n_clicks, years, afftext, affsearchtype, *args):
+
+    print('filter_data_store_and_summarize')
+    sections = list(as_sections)
+    section_dict = dict(zip(as_sections, args[0:len(as_sections)]))
+
+    mergerargs = args[len(as_sections):2*len(as_sections)]
+    mergerchecklistargs = args[2*len(as_sections):3*len(as_sections)]
+
+    filtered, merger_dict, messages, included_sections = filter_data(
+        years, section_dict, afftext, affsearchtype, mergerargs, mergerchecklistargs)
 
     # Create a summary table of papers.
     papers = set(filtered['paper_id'])
@@ -691,7 +707,7 @@ def filter_data_store_and_summarize(n_clicks, years, afftext, affsearchtype, *ar
 
     # Summarize what was done: years selected, affiliation checking, mergers carried out:
     summary = ['{} Papers are present in this selection'.format(len(papers))] + ['']
-    summary += ["Papers from {} to {} are being examined.".format(years[0], years[1])]
+    summary += ["Papers from {} to {} are being examined.".format(years[0], years[1])] + ['']
     if afftext and afftext != '':
         text = 'Only papers where the string "{afftext}" is contained {afftype} are being examined'
         if affsearchtype == ['affsearch-firstonly']:
@@ -699,6 +715,13 @@ def filter_data_store_and_summarize(n_clicks, years, afftext, affsearchtype, *ar
         else:
             text = text.format(afftext=afftext, afftype="in any author's affiliation")
         summary += [text, '']
+    if included_sections != {}:
+        for section in included_sections:
+            text = ['Section {}:'.format(section)]
+            text += ['Only papers marked as  {} were included'.format(included_sections[section])]
+            text += ['']
+            summary += text
+
     if merger_dict:
         text = ['New categories have been formed by merging/renaming old categories.', '']
         for section, mergers in merger_dict.items():
