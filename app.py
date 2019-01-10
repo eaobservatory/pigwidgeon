@@ -15,11 +15,17 @@ from ast import literal_eval
 import pandas as pd
 import io
 import json
+import urllib.parse
 
 from operator import attrgetter
 
 
 
+### Various functions
+def generate_csv(dataframe):
+    csvString = dataframe.to_csv(index=False,encoding='utf-8')
+    csvString = "data:text/csv;charset=utf-8," + urllib.parse.quote(csvString)
+    return csvString
 
 
 def get_colors_from_name(colormapname, numbervalues, reverse=False):
@@ -214,11 +220,21 @@ def generate_render_display_functions(thesection):
                 figure={ 'data': bars, 'layout': bar_layout},
                 config={'toImageButtonOptions': {'format':'png', 'filename':'{}-plot'.format(section)}},
                 )
+
+
+            csv_string = generate_csv(tab_results)
+            link  = html.Div(html.A('Download results for {}'.format(section),
+                           id='download-results-{}'.format(section),
+                           href=csv_string,
+                           download='results-{}.csv'.format(section),
+                           target="_blank",
+                           ))
         else:
             graph = None
             tab = None
+            link = None
         print('calculated info for rendering {}'.format(thesection))
-        return [graph, tab]
+        return [graph, tab, link]
 
     return render_display_func
 
@@ -666,6 +682,11 @@ def filter_data_store_and_summarize(n_clicks, years, afftext, affsearchtype, *ar
     papers = set(filtered['paper_id'])
     mask = (df['paper_id'].isin(papers))&(df['position']==0)
     filtered_table = df[mask][['paper_id', 'title', 'pubdate', 'author']].drop_duplicates()
+
+
+    csv_string = generate_csv(filtered_table)
+    csv_link = html.A('Download Filtered Papers as CSV', id='filtered-download-results',
+                      href=csv_string, download='filteredpapers.csv', target="_blank")
     filtered_table = generate_paper_table(filtered_table)
 
     # Summarize what was done: years selected, affiliation checking, mergers carried out:
@@ -706,6 +727,7 @@ def filter_data_store_and_summarize(n_clicks, years, afftext, affsearchtype, *ar
             html.Div(id='filtered-data-warnings', children=messages),
             html.Div(id='filtered-data-summary',
                      children=[html.Div(summary),
+                               csv_link,
                                html.H4("Table of papers (click here to hide/show)", id='summary_title'),
                                html.Div(children=filtered_table, style={'display': 'none'},
                                         id='filtered_table_div')
