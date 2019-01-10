@@ -7,6 +7,11 @@ from dash.dependencies import Input, Output, State
 
 import plotly.graph_objs as go
 
+from plotly import colors
+import numpy as np
+from ast import literal_eval
+
+
 import pandas as pd
 import io
 import json
@@ -16,15 +21,6 @@ from operator import attrgetter
 
 
 
-affiliations = set(df[df['sectionnamed']=='Affiliation']['sublist_name'])
-instruments = set(df[df['sectionnamed']=='Instrument']['sublist_name'])
-
-full_info = {'Overall': []}
-full_info.update(lookup_sublists)
-
-from plotly import colors
-import numpy as np
-from ast import literal_eval
 
 def get_colors_from_name(colormapname, numbervalues, reverse=False):
 
