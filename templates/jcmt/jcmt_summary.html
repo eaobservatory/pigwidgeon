@@ -1,0 +1,52 @@
+{% extends 'layout.html' %}
+
+
+{% block body %}
+<h2> JCMT Publications </h2>
+
+<p>This includes all refereed papers marked
+as either (or both) of a JCMT Science Paper or JCMT Theory Paper. The
+number of papers in the database that have not been commented on by
+anyone, or which have been flagged as unknown, is shown in the table
+to the side by year. Results from 2013 onwards are derived from the
+Pigwidgeon database. Results from earleir than 2013 are derived from a
+static list of JCMT publications made in previous years.</p>
+
+<div class="sidebyside">
+<img src="{{url_for('jcmt.jcmt_publication_graph')}}"/>
+{{missed.to_html()|safe}}
+</div>
+
+<h2> Break down of JCMT publications </h2>
+<p>TODO: add in list of publications that did not have anything ticked in a section</p>
+
+<h3> Instruments</h3>
+<div>
+<img src="{{url_for('jcmt.jcmt_publication_graph', breakdown='Instrument', startdate='2013-01')}}"/>
+</div>
+<h3>Science Areas</h3>
+<div>
+<img src="{{url_for('jcmt.jcmt_publication_graph', breakdown='Science Areas', startdate='2013-01')}}"/>
+</div>
+
+<h3>Data Source</h3>
+<div>
+<img src="{{url_for('jcmt.jcmt_publication_graph', breakdown='Observations', startdate='2013-01')}}"/>
+</div>
+
+
+<h2> Further Analysis </h2>
+
+Affilation (first author and other)
+
+Link to project
+
+Sources of papers
+
+Papers by ADS citation metrics.
+
+Large Programs & JLS vs PI
+
+
+
+{% endblock %}
