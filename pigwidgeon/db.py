@@ -113,7 +113,7 @@ class InfoSection(Base):
 
     instructiontext =  Column(Unicode(50), default=None)
     search = relationship("Search")
-    sublists = relationship("InfoSublist")
+    sublists = relationship("InfoSublist", order_by="InfoSublist.position_")
 
 
 
