@@ -1,8 +1,13 @@
-from flask import Flask
+from flask import Flask, redirect
 from flask_login import LoginManager
 from flask_ldap3_login import LDAP3LoginManager
 
-app = Flask('Papermonitoring')
+import dash
+
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
+app = Flask('Pigwidgeon')
 
 # LDAP Configuration Variables
 
@@ -52,3 +57,19 @@ app.register_blueprint(auth)
 from .views.jcmt import jcmt
 app.register_blueprint(jcmt)
 
+
+
+app_dash = dash.Dash('Pigwidgeon', server=app, url_base_pathname='/jcmt-dash-basic/',
+                     external_stylesheets= ['https://codepen.io/chriddyp/pen/bWLwgP.css'])
+
+app_dash.config['suppress_callback_exceptions']=True
+
+
+from .dash_app import create_dash_app
+create_dash_app(app_dash)
+
+
+
+@app.route('/jcmt-dashboard')
+def jcmt_dashboard():
+    return redirect('/jcmt-dash-basic/')

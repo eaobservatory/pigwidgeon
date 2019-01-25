@@ -1,0 +1,13 @@
+.selection-dropdown {
+    display: inline-block;
+    width: 80%;
+}
+
+.selection-dropdown > div {
+    margin: 5px;
+    }
+.select-all{
+    vertical-align:top;
+    margin: 5px;
+    width:18%;
+}
