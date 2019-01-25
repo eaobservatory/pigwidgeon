@@ -16,8 +16,8 @@ Options:
 
 from docopt import docopt
 
-from papertracking.util import create_session
-from papertracking import query
+from pigwidgeon.util import create_session
+from pigwidgeon import query
 import logging
 import datetime
 
