@@ -62,9 +62,10 @@ def create_summary_by_papertype(dbsession, searchid, username=None, papertypes_t
         dbsession = create_session()
 
     # Get all papertypes that we care about
-    papertypes = dbsession.query(PaperType).filter(Search.id==searchid).order_by(PaperType.position_).all()
+    papertypes = dbsession.query(PaperType).filter(PaperType.search_id==searchid).order_by(PaperType.position_).all()
     if papertypes_to_query:
         papertypes = [p for p in papertypes if p.id in papertypes_to_query]
+
     # ensure arguments are in correct format:
     if paperarguments:
         refereed = paperarguments.get('refereed', None)
@@ -90,7 +91,7 @@ def create_summary_by_papertype(dbsession, searchid, username=None, papertypes_t
     results = OrderedDict()
 
     # Create a comment query, and enuser that infosectionvalues and papertypevalues are eagerly loaded.
-    commentquery = dbsession.query(Comment, Paper, Author.author).filter(Search.id==int(searchid))
+    commentquery = dbsession.query(Comment, Paper, Author.author).filter(Comment.search_id==int(searchid))
     commentquery = commentquery.join(Paper, Comment.paper_id==Paper.id)
     commentquery = commentquery.join(Author, Comment.paper_id==Author.paper_id).filter(Author.position_==0)
     commentquery = commentquery.group_by(Comment.id)

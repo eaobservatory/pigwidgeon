@@ -71,7 +71,7 @@ def get_commentsearch_info(searchquery, search):
 
 
 
-dbsession = create_session()
+#dbsession = create_session()
 @login_manager.user_loader
 def load_user(id):
     if id in users:
@@ -92,6 +92,7 @@ def get_current_user():
 @auth.route('/')
 @auth.route('/front_page')
 def front_page():
+    dbsession = create_session()
     # Get all currently setup searches.
     searches = dbsession.query(Search).all()
     return render_template('frontpage.html', searches=searches)
@@ -125,6 +126,7 @@ def logout():
 
 @auth.route('/search/<searchid>/paper-comments/<paperid>')
 def paper_comments_info_page(paperid, searchid):
+    dbsession = create_session()
     search, paper = get_paper_info(paperid,searchid, dbsession)
 
     # Get all comments on a specific paper.
@@ -169,6 +171,7 @@ def paper_comments_info_page(paperid, searchid):
 
 @auth.route('/search/<searchid>/paper/<paperid>')
 def paper_info_page(paperid, searchid):
+    dbsession = create_session()
     search, paper = get_paper_info(paperid,searchid, dbsession)
     comments = dbsession.query(Comment).filter_by(search_id=searchid, paper_id=paperid).all()
     if hasattr(current_user, 'username'):
@@ -275,7 +278,13 @@ def create_papersearch_query(dbsession, searchid, initialquery=None, startdate=N
         else:
             print('already classified is not True')
             if username:
-                query = query.filter(usercommentcount == 0)
+
+                #query = query.filter(Paper.id.notin_(bcomm.paper_id))
+                commquery = dbsession.query(Comment.paper_id)
+                commquery = commquery.filter(Comment.username==username)
+                commquery = commquery.filter(Comment.search_id==searchid)
+                commquery = commquery.subquery()
+                query = query.filter(Paper.id.notin_(commquery))
                 # Search for papers with no comments from that user name.
                 #subquery = dbsession.query(distinct(Comment.paper_id)).filter(Comment.username==username)
                 #query = query.filter(Paper.id.notin_(subquery))
@@ -352,7 +361,7 @@ def create_comment_search(dbsession, searchid, searchargs, paperargs=None):
                 sublistids = searchargs.getlist(isec, int)
                 if combine_or:
                     commentquery = commentquery.filter(Comment.infosectionvalues.any(
-                        InfosectionValue.info_sublist_id.in_(sublistids)))
+                        InfoSectionValue.info_sublist_id.in_(sublistids)))
                 else:
                     for slid in sublistids:
                         commentquery = commentquery.filter(Comment.infosectionvalues.any(
@@ -376,6 +385,7 @@ def create_comment_search(dbsession, searchid, searchargs, paperargs=None):
 
 @auth.route('/search/<searchid>/commentsearch')
 def search_paper_list_bycomment(searchid):
+    dbsession = create_session()
     search = dbsession.query(Search).filter(Search.id==int(searchid)).one()
 
     searchargs = MultiDict()
@@ -422,6 +432,7 @@ from ..summary_view import create_summary_by_papertype, create_summary_table_plo
 
 @auth.route('/<searchid>/summarise_comments', methods=['GET', 'POST'])
 def summarise_comments(searchid):
+
     dosearch = request.args.get('dosearch', 0, type=int)
     startdate = request.args.get('startdate',None)
     enddate  = request.args.get('enddate', None)
@@ -476,12 +487,12 @@ def summarise_comments(searchid):
                                                                              infosections_to_query=infosections_to_query,
                                                                              papertypes_to_query=papertypes_to_query,
                                                                              paperarguments=querykwargs)
-
+        print(ptypedict)
         overallsummarytable = fixup_summarytable(overallsummarytable, searchid)
         for p in ptypedict:
             for k in ptypedict[p]:
                 ptypedict[p][k] = (ptypedict[p][k][0],fixup_summarytable(ptypedict[p][k][1], searchid))
-
+                
         print('Creating plots!')
         mpldict = create_summary_plots_mpl(overallsummary, ptypedict)
         print('Created plots!')
@@ -506,6 +517,7 @@ def summarise_comments(searchid):
 @auth.route('/search/<searchid>/paperlist')
 def search_paper_list(searchid):
     print('Showing search_paper_list')
+    dbsession = create_session()
     search = dbsession.query(Search).filter(Search.id==int(searchid)).one()
 
     startdate = request.args.get('startdate',None)
@@ -560,6 +572,7 @@ def create_search():
 
 @auth.route('/search/<searchid>/paper/<paperid>/submit_comments', methods=['POST'])
 def submit_paper(paperid, searchid):
+    dbsession = create_session()
     comment = create_comment_from_request(request.form, dbsession)
     dbsession.add(comment)
     dbsession.commit()
@@ -573,7 +586,7 @@ def submit_paper(paperid, searchid):
 def search_info_page(searchid):
     preview = request.args.get('preview', False) == 'True'
     create = request.args.get('create', False) == 'True'
-    ses = dbsession
+    ses = create_session()
     search = ses.query(Search).filter(Search.id==int(searchid)).one()
     return render_template('displaysearch.html', search=search, preview=preview, create=create)
 
